@@ -1,0 +1,46 @@
+Queries:
+
+Query 1: 
+
+MATCH (t:Traveller)-[:STAYED_AT]->(h:Hotel)-[:LOCATED_IN]->(ci:City)-[:LOCATED_IN]->(visited_country:Country)
+MATCH (t)-[:FROM_COUNTRY]->(home_country:Country)
+WHERE NOT (home_country)-[:NEEDS_VISA]->(visited_country)
+RETURN count(DISTINCT t) AS TravellerCount
+
+
+Query 2:
+
+MATCH (t:Traveller)-[:STAYED_AT]->(h:Hotel)-[:LOCATED_IN]->(ci:City)-[:LOCATED_IN]->(visited_country:Country)
+MATCH (t)-[:FROM_COUNTRY]->(home_country:Country)
+WHERE NOT (home_country)-[:NEEDS_VISA]->(visited_country)
+RETURN count(DISTINCT t) AS TravellerCount
+
+
+Query 3:
+
+MATCH (h:Hotel)
+OPTIONAL MATCH (t:Traveller {type: 'Couple'})-[:STAYED_AT]->(h)
+RETURN h.name AS HotelName, count(t) AS CoupleTravellerCount
+ORDER BY h.name ASC
+
+Query 4:
+
+MATCH (r:Review)-[:REVIEWED]->(h:Hotel)
+WITH h, avg(r.score_cleanliness) AS AverageCleanliness
+WHERE AverageCleanliness < 8.8
+RETURN h.name AS HotelName, AverageCleanliness
+ORDER BY AverageCleanliness ASC
+LIMIT 3
+
+
+Query 5:
+MATCH (t:Traveller {gender: 'Female'})-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
+WITH h, avg(r.score_location) AS AvgLocationScore
+
+WITH collect({hotelName: h.name, score: AvgLocationScore}) AS HotelsWithScores, max(AvgLocationScore) AS MaxScore
+
+UNWIND HotelsWithScores AS item
+WITH item, MaxScore
+WHERE item.score = MaxScore
+RETURN item.hotelName AS HotelName, item.score AS AverageLocationScore
+
