@@ -1,0 +1,381 @@
+from,to,requires_visa,visa_type
+United States,United Kingdom,No,Visa-Free / eVisa
+United States,France,No,Visa-Free / eVisa
+United States,Japan,No,Visa-Free / eVisa
+United States,United Arab Emirates,No,Visa-Free / eVisa
+United States,Singapore,No,Visa-Free / eVisa
+United States,Australia,No,Visa-Free / eVisa
+United States,Brazil,No,Visa-Free / eVisa
+United States,Germany,No,Visa-Free / eVisa
+United States,Canada,No,Visa-Free / eVisa
+United States,China,No,Visa-Free / eVisa
+United States,Mexico,No,Visa-Free / eVisa
+United States,India,No,Visa-Free / eVisa
+United States,Italy,No,Visa-Free / eVisa
+United States,South Africa,No,Visa-Free / eVisa
+United States,South Korea,No,Visa-Free / eVisa
+United States,Russia,No,Visa-Free / eVisa
+United States,Egypt,No,Visa-Free / eVisa
+United States,Spain,No,Visa-Free / eVisa
+United States,Thailand,No,Visa-Free / eVisa
+United Kingdom,United States,No,Visa-Free / eVisa
+United Kingdom,France,No,Visa-Free / eVisa
+United Kingdom,Japan,No,Visa-Free / eVisa
+United Kingdom,United Arab Emirates,No,Visa-Free / eVisa
+United Kingdom,Singapore,No,Visa-Free / eVisa
+United Kingdom,Australia,No,Visa-Free / eVisa
+United Kingdom,Brazil,No,Visa-Free / eVisa
+United Kingdom,Germany,No,Visa-Free / eVisa
+United Kingdom,Canada,No,Visa-Free / eVisa
+United Kingdom,China,No,Visa-Free / eVisa
+United Kingdom,Mexico,No,Visa-Free / eVisa
+United Kingdom,India,No,Visa-Free / eVisa
+United Kingdom,Italy,No,Visa-Free / eVisa
+United Kingdom,South Africa,No,Visa-Free / eVisa
+United Kingdom,South Korea,No,Visa-Free / eVisa
+United Kingdom,Russia,No,Visa-Free / eVisa
+United Kingdom,Egypt,No,Visa-Free / eVisa
+United Kingdom,Spain,No,Visa-Free / eVisa
+United Kingdom,Thailand,No,Visa-Free / eVisa
+France,United States,No,Visa-Free / eVisa
+France,United Kingdom,No,Visa-Free / eVisa
+France,Japan,No,Visa-Free / eVisa
+France,United Arab Emirates,No,Visa-Free / eVisa
+France,Singapore,No,Visa-Free / eVisa
+France,Australia,No,Visa-Free / eVisa
+France,Brazil,No,Visa-Free / eVisa
+France,Germany,No,Visa-Free / eVisa
+France,Canada,No,Visa-Free / eVisa
+France,China,No,Visa-Free / eVisa
+France,Mexico,No,Visa-Free / eVisa
+France,India,No,Visa-Free / eVisa
+France,Italy,No,Visa-Free / eVisa
+France,South Africa,No,Visa-Free / eVisa
+France,South Korea,No,Visa-Free / eVisa
+France,Russia,No,Visa-Free / eVisa
+France,Egypt,No,Visa-Free / eVisa
+France,Spain,No,Visa-Free / eVisa
+France,Thailand,No,Visa-Free / eVisa
+Japan,United States,No,Visa-Free / eVisa
+Japan,United Kingdom,No,Visa-Free / eVisa
+Japan,France,No,Visa-Free / eVisa
+Japan,United Arab Emirates,No,Visa-Free / eVisa
+Japan,Singapore,No,Visa-Free / eVisa
+Japan,Australia,No,Visa-Free / eVisa
+Japan,Brazil,No,Visa-Free / eVisa
+Japan,Germany,No,Visa-Free / eVisa
+Japan,Canada,No,Visa-Free / eVisa
+Japan,China,No,Visa-Free / eVisa
+Japan,Mexico,No,Visa-Free / eVisa
+Japan,India,No,Visa-Free / eVisa
+Japan,Italy,No,Visa-Free / eVisa
+Japan,South Africa,No,Visa-Free / eVisa
+Japan,South Korea,No,Visa-Free / eVisa
+Japan,Russia,No,Visa-Free / eVisa
+Japan,Egypt,No,Visa-Free / eVisa
+Japan,Spain,No,Visa-Free / eVisa
+Japan,Thailand,No,Visa-Free / eVisa
+United Arab Emirates,United States,No,Visa-Free / eVisa
+United Arab Emirates,United Kingdom,No,Visa-Free / eVisa
+United Arab Emirates,France,No,Visa-Free / eVisa
+United Arab Emirates,Japan,No,Visa-Free / eVisa
+United Arab Emirates,Singapore,No,Visa-Free / eVisa
+United Arab Emirates,Australia,No,Visa-Free / eVisa
+United Arab Emirates,Brazil,No,Visa-Free / eVisa
+United Arab Emirates,Germany,No,Visa-Free / eVisa
+United Arab Emirates,Canada,No,Visa-Free / eVisa
+United Arab Emirates,China,No,Visa-Free / eVisa
+United Arab Emirates,Mexico,No,Visa-Free / eVisa
+United Arab Emirates,India,No,Visa-Free / eVisa
+United Arab Emirates,Italy,No,Visa-Free / eVisa
+United Arab Emirates,South Africa,No,Visa-Free / eVisa
+United Arab Emirates,South Korea,No,Visa-Free / eVisa
+United Arab Emirates,Russia,No,Visa-Free / eVisa
+United Arab Emirates,Egypt,No,Visa-Free / eVisa
+United Arab Emirates,Spain,No,Visa-Free / eVisa
+United Arab Emirates,Thailand,No,Visa-Free / eVisa
+Singapore,United States,No,Visa-Free / eVisa
+Singapore,United Kingdom,No,Visa-Free / eVisa
+Singapore,France,No,Visa-Free / eVisa
+Singapore,Japan,No,Visa-Free / eVisa
+Singapore,United Arab Emirates,No,Visa-Free / eVisa
+Singapore,Australia,No,Visa-Free / eVisa
+Singapore,Brazil,No,Visa-Free / eVisa
+Singapore,Germany,No,Visa-Free / eVisa
+Singapore,Canada,No,Visa-Free / eVisa
+Singapore,China,No,Visa-Free / eVisa
+Singapore,Mexico,No,Visa-Free / eVisa
+Singapore,India,No,Visa-Free / eVisa
+Singapore,Italy,No,Visa-Free / eVisa
+Singapore,South Africa,No,Visa-Free / eVisa
+Singapore,South Korea,No,Visa-Free / eVisa
+Singapore,Russia,No,Visa-Free / eVisa
+Singapore,Egypt,No,Visa-Free / eVisa
+Singapore,Spain,No,Visa-Free / eVisa
+Singapore,Thailand,No,Visa-Free / eVisa
+Australia,United States,No,Visa-Free / eVisa
+Australia,United Kingdom,No,Visa-Free / eVisa
+Australia,France,No,Visa-Free / eVisa
+Australia,Japan,No,Visa-Free / eVisa
+Australia,United Arab Emirates,No,Visa-Free / eVisa
+Australia,Singapore,No,Visa-Free / eVisa
+Australia,Brazil,No,Visa-Free / eVisa
+Australia,Germany,No,Visa-Free / eVisa
+Australia,Canada,No,Visa-Free / eVisa
+Australia,China,No,Visa-Free / eVisa
+Australia,Mexico,No,Visa-Free / eVisa
+Australia,India,No,Visa-Free / eVisa
+Australia,Italy,No,Visa-Free / eVisa
+Australia,South Africa,No,Visa-Free / eVisa
+Australia,South Korea,No,Visa-Free / eVisa
+Australia,Russia,No,Visa-Free / eVisa
+Australia,Egypt,No,Visa-Free / eVisa
+Australia,Spain,No,Visa-Free / eVisa
+Australia,Thailand,No,Visa-Free / eVisa
+Brazil,United States,No,Visa-Free / eVisa
+Brazil,United Kingdom,No,Visa-Free / eVisa
+Brazil,France,No,Visa-Free / eVisa
+Brazil,Japan,No,Visa-Free / eVisa
+Brazil,United Arab Emirates,No,Visa-Free / eVisa
+Brazil,Singapore,No,Visa-Free / eVisa
+Brazil,Australia,No,Visa-Free / eVisa
+Brazil,Germany,No,Visa-Free / eVisa
+Brazil,Canada,No,Visa-Free / eVisa
+Brazil,China,No,Visa-Free / eVisa
+Brazil,Mexico,No,Visa-Free / eVisa
+Brazil,India,No,Visa-Free / eVisa
+Brazil,Italy,No,Visa-Free / eVisa
+Brazil,South Africa,No,Visa-Free / eVisa
+Brazil,South Korea,No,Visa-Free / eVisa
+Brazil,Russia,No,Visa-Free / eVisa
+Brazil,Egypt,No,Visa-Free / eVisa
+Brazil,Spain,No,Visa-Free / eVisa
+Brazil,Thailand,No,Visa-Free / eVisa
+Germany,United States,No,Visa-Free / eVisa
+Germany,United Kingdom,No,Visa-Free / eVisa
+Germany,France,No,Visa-Free / eVisa
+Germany,Japan,No,Visa-Free / eVisa
+Germany,United Arab Emirates,No,Visa-Free / eVisa
+Germany,Singapore,No,Visa-Free / eVisa
+Germany,Australia,No,Visa-Free / eVisa
+Germany,Brazil,No,Visa-Free / eVisa
+Germany,Canada,No,Visa-Free / eVisa
+Germany,China,No,Visa-Free / eVisa
+Germany,Mexico,No,Visa-Free / eVisa
+Germany,India,No,Visa-Free / eVisa
+Germany,Italy,No,Visa-Free / eVisa
+Germany,South Africa,No,Visa-Free / eVisa
+Germany,South Korea,No,Visa-Free / eVisa
+Germany,Russia,No,Visa-Free / eVisa
+Germany,Egypt,No,Visa-Free / eVisa
+Germany,Spain,No,Visa-Free / eVisa
+Germany,Thailand,No,Visa-Free / eVisa
+Canada,United States,No,Visa-Free / eVisa
+Canada,United Kingdom,No,Visa-Free / eVisa
+Canada,France,No,Visa-Free / eVisa
+Canada,Japan,No,Visa-Free / eVisa
+Canada,United Arab Emirates,No,Visa-Free / eVisa
+Canada,Singapore,No,Visa-Free / eVisa
+Canada,Australia,No,Visa-Free / eVisa
+Canada,Brazil,No,Visa-Free / eVisa
+Canada,Germany,No,Visa-Free / eVisa
+Canada,China,No,Visa-Free / eVisa
+Canada,Mexico,No,Visa-Free / eVisa
+Canada,India,No,Visa-Free / eVisa
+Canada,Italy,No,Visa-Free / eVisa
+Canada,South Africa,No,Visa-Free / eVisa
+Canada,South Korea,No,Visa-Free / eVisa
+Canada,Russia,No,Visa-Free / eVisa
+Canada,Egypt,No,Visa-Free / eVisa
+Canada,Spain,No,Visa-Free / eVisa
+Canada,Thailand,No,Visa-Free / eVisa
+China,United States,Yes,Tourist Visa
+China,United Kingdom,Yes,Tourist Visa
+China,France,Yes,Tourist Visa
+China,Japan,Yes,Tourist Visa
+China,United Arab Emirates,Yes,Tourist Visa
+China,Singapore,Yes,Tourist Visa
+China,Australia,Yes,Tourist Visa
+China,Brazil,Yes,Tourist Visa
+China,Germany,Yes,Tourist Visa
+China,Canada,Yes,Tourist Visa
+China,Mexico,Yes,Tourist Visa
+China,India,Yes,Tourist Visa
+China,Italy,Yes,Tourist Visa
+China,South Africa,Yes,Tourist Visa
+China,South Korea,Yes,Tourist Visa
+China,Russia,Yes,Tourist Visa
+China,Egypt,Yes,Tourist Visa
+China,Spain,Yes,Tourist Visa
+China,Thailand,Yes,Tourist Visa
+Mexico,United States,No,Visa-Free / eVisa
+Mexico,United Kingdom,No,Visa-Free / eVisa
+Mexico,France,No,Visa-Free / eVisa
+Mexico,Japan,No,Visa-Free / eVisa
+Mexico,United Arab Emirates,No,Visa-Free / eVisa
+Mexico,Singapore,No,Visa-Free / eVisa
+Mexico,Australia,No,Visa-Free / eVisa
+Mexico,Brazil,No,Visa-Free / eVisa
+Mexico,Germany,No,Visa-Free / eVisa
+Mexico,Canada,No,Visa-Free / eVisa
+Mexico,China,No,Visa-Free / eVisa
+Mexico,India,No,Visa-Free / eVisa
+Mexico,Italy,No,Visa-Free / eVisa
+Mexico,South Africa,No,Visa-Free / eVisa
+Mexico,South Korea,No,Visa-Free / eVisa
+Mexico,Russia,No,Visa-Free / eVisa
+Mexico,Egypt,No,Visa-Free / eVisa
+Mexico,Spain,No,Visa-Free / eVisa
+Mexico,Thailand,No,Visa-Free / eVisa
+India,United States,Yes,Tourist Visa / eVisa
+India,United Kingdom,Yes,Tourist Visa / eVisa
+India,France,Yes,Tourist Visa / eVisa
+India,Japan,Yes,Tourist Visa / eVisa
+India,United Arab Emirates,Yes,Tourist Visa / eVisa
+India,Singapore,Yes,Tourist Visa / eVisa
+India,Australia,Yes,Tourist Visa / eVisa
+India,Brazil,Yes,Tourist Visa / eVisa
+India,Germany,Yes,Tourist Visa / eVisa
+India,Canada,Yes,Tourist Visa / eVisa
+India,China,Yes,Tourist Visa / eVisa
+India,Mexico,Yes,Tourist Visa / eVisa
+India,Italy,Yes,Tourist Visa / eVisa
+India,South Africa,Yes,Tourist Visa / eVisa
+India,South Korea,Yes,Tourist Visa / eVisa
+India,Russia,Yes,Tourist Visa / eVisa
+India,Egypt,Yes,Tourist Visa / eVisa
+India,Spain,Yes,Tourist Visa / eVisa
+India,Thailand,Yes,Tourist Visa / eVisa
+Italy,United States,No,Visa-Free / eVisa
+Italy,United Kingdom,No,Visa-Free / eVisa
+Italy,France,No,Visa-Free / eVisa
+Italy,Japan,No,Visa-Free / eVisa
+Italy,United Arab Emirates,No,Visa-Free / eVisa
+Italy,Singapore,No,Visa-Free / eVisa
+Italy,Australia,No,Visa-Free / eVisa
+Italy,Brazil,No,Visa-Free / eVisa
+Italy,Germany,No,Visa-Free / eVisa
+Italy,Canada,No,Visa-Free / eVisa
+Italy,China,No,Visa-Free / eVisa
+Italy,Mexico,No,Visa-Free / eVisa
+Italy,India,No,Visa-Free / eVisa
+Italy,South Africa,No,Visa-Free / eVisa
+Italy,South Korea,No,Visa-Free / eVisa
+Italy,Russia,No,Visa-Free / eVisa
+Italy,Egypt,No,Visa-Free / eVisa
+Italy,Spain,No,Visa-Free / eVisa
+Italy,Thailand,No,Visa-Free / eVisa
+South Africa,United States,Yes,Tourist Visa / eVisa
+South Africa,United Kingdom,Yes,Tourist Visa / eVisa
+South Africa,France,Yes,Tourist Visa / eVisa
+South Africa,Japan,Yes,Tourist Visa / eVisa
+South Africa,United Arab Emirates,Yes,Tourist Visa / eVisa
+South Africa,Singapore,Yes,Tourist Visa / eVisa
+South Africa,Australia,Yes,Tourist Visa / eVisa
+South Africa,Brazil,Yes,Tourist Visa / eVisa
+South Africa,Germany,Yes,Tourist Visa / eVisa
+South Africa,Canada,Yes,Tourist Visa / eVisa
+South Africa,China,Yes,Tourist Visa / eVisa
+South Africa,Mexico,Yes,Tourist Visa / eVisa
+South Africa,India,Yes,Tourist Visa / eVisa
+South Africa,Italy,Yes,Tourist Visa / eVisa
+South Africa,South Korea,Yes,Tourist Visa / eVisa
+South Africa,Russia,Yes,Tourist Visa / eVisa
+South Africa,Egypt,Yes,Tourist Visa / eVisa
+South Africa,Spain,Yes,Tourist Visa / eVisa
+South Africa,Thailand,Yes,Tourist Visa / eVisa
+South Korea,United States,No,Visa-Free / eVisa
+South Korea,United Kingdom,No,Visa-Free / eVisa
+South Korea,France,No,Visa-Free / eVisa
+South Korea,Japan,No,Visa-Free / eVisa
+South Korea,United Arab Emirates,No,Visa-Free / eVisa
+South Korea,Singapore,No,Visa-Free / eVisa
+South Korea,Australia,No,Visa-Free / eVisa
+South Korea,Brazil,No,Visa-Free / eVisa
+South Korea,Germany,No,Visa-Free / eVisa
+South Korea,Canada,No,Visa-Free / eVisa
+South Korea,China,No,Visa-Free / eVisa
+South Korea,Mexico,No,Visa-Free / eVisa
+South Korea,India,No,Visa-Free / eVisa
+South Korea,Italy,No,Visa-Free / eVisa
+South Korea,South Africa,No,Visa-Free / eVisa
+South Korea,Russia,No,Visa-Free / eVisa
+South Korea,Egypt,No,Visa-Free / eVisa
+South Korea,Spain,No,Visa-Free / eVisa
+South Korea,Thailand,No,Visa-Free / eVisa
+Russia,United States,Yes,Tourist Visa / eVisa
+Russia,United Kingdom,Yes,Tourist Visa / eVisa
+Russia,France,Yes,Tourist Visa / eVisa
+Russia,Japan,Yes,Tourist Visa / eVisa
+Russia,United Arab Emirates,Yes,Tourist Visa / eVisa
+Russia,Singapore,Yes,Tourist Visa / eVisa
+Russia,Australia,Yes,Tourist Visa / eVisa
+Russia,Brazil,Yes,Tourist Visa / eVisa
+Russia,Germany,Yes,Tourist Visa / eVisa
+Russia,Canada,Yes,Tourist Visa / eVisa
+Russia,China,Yes,Tourist Visa / eVisa
+Russia,Mexico,Yes,Tourist Visa / eVisa
+Russia,India,Yes,Tourist Visa / eVisa
+Russia,Italy,Yes,Tourist Visa / eVisa
+Russia,South Africa,Yes,Tourist Visa / eVisa
+Russia,South Korea,Yes,Tourist Visa / eVisa
+Russia,Egypt,Yes,Tourist Visa / eVisa
+Russia,Spain,Yes,Tourist Visa / eVisa
+Russia,Thailand,Yes,Tourist Visa / eVisa
+Egypt,United States,Yes,Tourist Visa
+Egypt,United Kingdom,Yes,Tourist Visa
+Egypt,France,Yes,Tourist Visa
+Egypt,Japan,Yes,Tourist Visa
+Egypt,United Arab Emirates,Yes,Tourist Visa
+Egypt,Singapore,Yes,Tourist Visa
+Egypt,Australia,Yes,Tourist Visa
+Egypt,Brazil,Yes,Tourist Visa
+Egypt,Germany,Yes,Tourist Visa
+Egypt,Canada,Yes,Tourist Visa
+Egypt,China,Yes,Tourist Visa
+Egypt,Mexico,Yes,Tourist Visa
+Egypt,India,Yes,Tourist Visa
+Egypt,Italy,Yes,Tourist Visa
+Egypt,South Africa,Yes,Tourist Visa
+Egypt,South Korea,Yes,Tourist Visa
+Egypt,Russia,Yes,Tourist Visa
+Egypt,Spain,Yes,Tourist Visa
+Egypt,Thailand,Yes,Tourist Visa
+Spain,United States,No,Visa-Free / eVisa
+Spain,United Kingdom,No,Visa-Free / eVisa
+Spain,France,No,Visa-Free / eVisa
+Spain,Japan,No,Visa-Free / eVisa
+Spain,United Arab Emirates,No,Visa-Free / eVisa
+Spain,Singapore,No,Visa-Free / eVisa
+Spain,Australia,No,Visa-Free / eVisa
+Spain,Brazil,No,Visa-Free / eVisa
+Spain,Germany,No,Visa-Free / eVisa
+Spain,Canada,No,Visa-Free / eVisa
+Spain,China,No,Visa-Free / eVisa
+Spain,Mexico,No,Visa-Free / eVisa
+Spain,India,No,Visa-Free / eVisa
+Spain,Italy,No,Visa-Free / eVisa
+Spain,South Africa,No,Visa-Free / eVisa
+Spain,South Korea,No,Visa-Free / eVisa
+Spain,Russia,No,Visa-Free / eVisa
+Spain,Egypt,No,Visa-Free / eVisa
+Spain,Thailand,No,Visa-Free / eVisa
+Thailand,United States,Yes,Tourist Visa / eVisa
+Thailand,United Kingdom,Yes,Tourist Visa / eVisa
+Thailand,France,Yes,Tourist Visa / eVisa
+Thailand,Japan,Yes,Tourist Visa / eVisa
+Thailand,United Arab Emirates,Yes,Tourist Visa / eVisa
+Thailand,Singapore,Yes,Tourist Visa / eVisa
+Thailand,Australia,Yes,Tourist Visa / eVisa
+Thailand,Brazil,Yes,Tourist Visa / eVisa
+Thailand,Germany,Yes,Tourist Visa / eVisa
+Thailand,Canada,Yes,Tourist Visa / eVisa
+Thailand,China,Yes,Tourist Visa / eVisa
+Thailand,Mexico,Yes,Tourist Visa / eVisa
+Thailand,India,Yes,Tourist Visa / eVisa
+Thailand,Italy,Yes,Tourist Visa / eVisa
+Thailand,South Africa,Yes,Tourist Visa / eVisa
+Thailand,South Korea,Yes,Tourist Visa / eVisa
+Thailand,Russia,Yes,Tourist Visa / eVisa
+Thailand,Egypt,Yes,Tourist Visa / eVisa
+Thailand,Spain,Yes,Tourist Visa / eVisa
