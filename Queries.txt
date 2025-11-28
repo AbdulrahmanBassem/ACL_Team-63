@@ -10,10 +10,12 @@ RETURN count(DISTINCT t) AS TravellerCount
 
 Query 2:
 
-MATCH (t:Traveller)-[:STAYED_AT]->(h:Hotel)-[:LOCATED_IN]->(ci:City)-[:LOCATED_IN]->(visited_country:Country)
-MATCH (t)-[:FROM_COUNTRY]->(home_country:Country)
-WHERE NOT (home_country)-[:NEEDS_VISA]->(visited_country)
-RETURN count(DISTINCT t) AS TravellerCount
+MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
+WHERE t.type = 'Business'
+WITH h.name AS hotelName, AVG(r.score_overall) AS avgRating
+ORDER BY avgRating DESC
+LIMIT 3
+RETURN hotelName, avgRating
 
 
 Query 3:
