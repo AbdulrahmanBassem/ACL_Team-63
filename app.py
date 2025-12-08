@@ -134,6 +134,7 @@ def extract_entities_from_query(query, entity_db):
             detected[category] = found_val
 
     # 2. Dynamic Age Range (Regex)
+    # Matches "between 18 to 25", "18-25", "18 and 25"
     age_pattern = r"(?:between\s+)?(\d+)\s*(?:to|and|-)\s*(\d+)"
     age_match = re.search(age_pattern, query_lower)
     if age_match:
@@ -144,20 +145,13 @@ def extract_entities_from_query(query, entity_db):
             detected["Target Age Groups"] = relevant_groups
 
     # 3. Special Requests
-    clean_keywords = ["cleanliness", "clean", "hygiene", "tidy"]
-    if any(keyword in query_lower for keyword in clean_keywords):
+    if any(k in query_lower for k in ["cleanliness", "clean", "hygiene", "tidy"]):
         detected["Sort By"] = "Cleanliness"
-
-    value_keywords = ["value", "money", "worth", "price", "budget", "cheap"]
-    if any(keyword in query_lower for keyword in value_keywords):
+    if any(k in query_lower for k in ["value", "money", "worth", "price", "budget"]):
         detected["Sort By"] = "Value"
-
-    loc_keywords = ["location", "central", "convenient", "walkable", "situated"]
-    if any(keyword in query_lower for keyword in loc_keywords):
+    if any(k in query_lower for k in ["location", "central", "convenient", "walkable"]):
         detected["Sort By"] = "Location"
-
-    comfort_keywords = ["comfort", "comfortable", "cozy", "relaxing", "bed quality"]
-    if any(keyword in query_lower for keyword in comfort_keywords):
+    if any(k in query_lower for k in ["comfort", "comfortable", "cozy", "relaxing"]):
         detected["Sort By"] = "Comfort"
 
     return detected
@@ -176,9 +170,7 @@ def get_hotels_by_city(driver, city_name):
         result = session.run(query, city=city_name)
         return [f"Hotel: {record['Hotel']} (Rating: {record['Score']})" for record in result]
 
-# --- TRAVELLER TYPE QUERIES ---
-
-# A. Get Hotels (Standard)
+# --- TRAVELLER TYPE ---
 def get_hotels_by_traveller_type(driver, traveller_type):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
@@ -191,9 +183,7 @@ def get_hotels_by_traveller_type(driver, traveller_type):
         result = session.run(query, type=traveller_type)
         return [f"Hotel: {record['hotelName']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
 
-# B. Get Countries (NEW)
 def get_best_countries_by_traveller_type(driver, traveller_type):
-    # This traverses further: Traveller -> Review -> Hotel -> City -> Country
     query = """
     MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)-->(:City)-->(cntry:Country)
     WHERE toLower(t.type) = toLower($type)
@@ -217,6 +207,9 @@ def get_top_countries_by_gender(driver, gender):
         result = session.run(query, gender=gender)
         return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
 
+# --- AGE GROUPS (UPDATED) ---
+
+# A. Get Countries (Existing)
 def get_top_countries_by_age_groups(driver, group_list):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(:Review)-[:REVIEWED]->(h:Hotel)-->(:City)-->(cntry:Country)
@@ -228,12 +221,22 @@ def get_top_countries_by_age_groups(driver, group_list):
         result = session.run(query, groups=group_list)
         return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
 
+# B. Get Hotels (NEW)
+def get_top_hotels_by_age_groups(driver, group_list):
+    query = """
+    MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
+    WHERE t.age IN $groups
+    WITH h.name AS Hotel, AVG(r.score_overall) AS avgRating
+    ORDER BY avgRating DESC LIMIT 3
+    RETURN Hotel, avgRating
+    """
+    with driver.session() as session:
+        result = session.run(query, groups=group_list)
+        return [f"Hotel: {record['Hotel']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
+
 # --- SPECIAL SORTING ---
 def get_best_hotels_by_cleanliness(driver, city=None, country=None):
-    query_base = """
-    MATCH (r:Review)-[:REVIEWED]->(h:Hotel)
-    WHERE r.score_cleanliness IS NOT NULL
-    """
+    query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_cleanliness IS NOT NULL"
     params = {}
     if city:
         query_base += " MATCH (h)-[:LOCATED_IN]->(c:City) WHERE toLower(c.name) = toLower($city) "
@@ -241,16 +244,9 @@ def get_best_hotels_by_cleanliness(driver, city=None, country=None):
     elif country:
         query_base += " MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) WHERE toLower(cntry.name) = toLower($country) "
         params["country"] = country
-
-    query_end = """
-    WITH h.name AS Hotel, AVG(r.score_cleanliness) AS AvgScore
-    RETURN Hotel, AvgScore
-    ORDER BY AvgScore DESC
-    LIMIT 5
-    """
-    final_query = query_base + query_end
+    query_end = " WITH h.name AS Hotel, AVG(r.score_cleanliness) AS AvgScore RETURN Hotel, AvgScore ORDER BY AvgScore DESC LIMIT 5"
     with driver.session() as session:
-        result = session.run(final_query, **params)
+        result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Cleanliness: {round(record['AvgScore'], 2)})" for record in result]
         scope = f"in {city}" if city else (f"in {country}" if country else "Globally")
         return data if data else [f"No cleanliness data found {scope}."]
@@ -312,10 +308,9 @@ def generate_response(user_query, detected_entities, vector_retriever, driver, l
         graph_results = get_hotels_by_city(driver, city)
         if graph_results: context_parts.append(f"Top Hotels in {city}:\n" + "\n".join(graph_results))
 
-    # 2. Traveller Type Check (SMART ROUTING)
+    # 2. Traveller Type Check (Smart Routing)
     t_type = detected_entities.get("Traveller Type")
     if t_type:
-        # Heuristic: If user asks for 'countries', show country stats. Otherwise, show hotels.
         if "country" in user_query.lower() or "countries" in user_query.lower():
             country_results = get_best_countries_by_traveller_type(driver, t_type)
             if country_results: context_parts.append(f"Top Rated Countries for '{t_type}':\n" + "\n".join(country_results))
@@ -329,12 +324,18 @@ def generate_response(user_query, detected_entities, vector_retriever, driver, l
         gender_results = get_top_countries_by_gender(driver, gender)
         if gender_results: context_parts.append(f"Popular for {gender}:\n" + "\n".join(gender_results))
 
+    # 4. Age Groups (Smart Routing - NEW)
     age_groups = detected_entities.get("Target Age Groups")
     if age_groups:
-        age_results = get_top_countries_by_age_groups(driver, age_groups)
-        if age_results: context_parts.append(f"Popular for Ages {age_groups}:\n" + "\n".join(age_results))
+        # If user explicitly asks for countries, show countries. Otherwise, show Hotels.
+        if "country" in user_query.lower() or "countries" in user_query.lower():
+            age_results = get_top_countries_by_age_groups(driver, age_groups)
+            if age_results: context_parts.append(f"Popular Countries for Ages {age_groups}:\n" + "\n".join(age_results))
+        else:
+            hotel_results = get_top_hotels_by_age_groups(driver, age_groups)
+            if hotel_results: context_parts.append(f"Top Rated Hotels for Ages {age_groups}:\n" + "\n".join(hotel_results))
 
-    # 4. Sorting Requests
+    # 5. Sorting Requests
     sort_type = detected_entities.get("Sort By")
     target_city = detected_entities.get("City")
     target_country = detected_entities.get("Country") or detected_entities.get("Destination Country")
@@ -343,20 +344,17 @@ def generate_response(user_query, detected_entities, vector_retriever, driver, l
     if sort_type == "Cleanliness":
         clean_results = get_best_hotels_by_cleanliness(driver, city=target_city, country=target_country)
         context_parts.append(f"Cleanest Hotels ({location_str}):\n" + "\n".join(clean_results))
-        
     elif sort_type == "Value":
         value_results = get_best_hotels_by_value(driver, city=target_city, country=target_country)
         context_parts.append(f"Best Value Hotels ({location_str}):\n" + "\n".join(value_results))
-
     elif sort_type == "Location":
         loc_results = get_best_hotels_by_location(driver, city=target_city, country=target_country)
         context_parts.append(f"Best Located Hotels ({location_str}):\n" + "\n".join(loc_results))
-
     elif sort_type == "Comfort":
         comf_results = get_best_hotels_by_comfort(driver, city=target_city, country=target_country)
         context_parts.append(f"Most Comfortable Hotels ({location_str}):\n" + "\n".join(comf_results))
 
-    # 5. Vector Layer
+    # 6. Vector Layer
     vector_results = vector_retriever.invoke(user_query)
     vector_text = "\n".join([doc.page_content for doc in vector_results])
     context_parts.append(f"Reviews:\n{vector_text}")
@@ -386,7 +384,7 @@ def generate_response(user_query, detected_entities, vector_retriever, driver, l
 # ---------------------------------------------------------
 st.title("🏨 Graph-RAG Hotel Assistant")
 
-user_query = st.text_input("Ask me:", placeholder="e.g., Best countries for Solo travellers?")
+user_query = st.text_input("Ask me:", placeholder="e.g., Best hotels for people aged 18-24?")
 
 if st.button("Ask Assistant"):
     try:
