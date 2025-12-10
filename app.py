@@ -10,7 +10,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from huggingface_hub import InferenceClient
 from langchain_core.language_models.llms import LLM
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import Field
 
 # ---------------------------------------------------------
@@ -32,7 +32,7 @@ neo4j_config = load_config()
 NEO4J_URI = neo4j_config.get('URI', 'neo4j://127.0.0.1:7687')
 NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
-HF_TOKEN = "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"  # <--- YOUR TOKEN
+HF_TOKEN = "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"  # <--- YOUR TOKEN
 
 # ---------------------------------------------------------
 # 2. HELPER: AGE MAPPING
@@ -73,20 +73,46 @@ class GemmaLangChainWrapper(LLM):
         return response.choices[0].message["content"]
 
 @st.cache_resource
-def setup_vector_store():
-    # Simplified for brevity
+def setup_text_vector_store():
+    """
+    Sets up the Standard Text Retriever (Review Content).
+    """
     reviews_df = pd.read_csv('Dataset/reviews.csv')
     hotels_df = pd.read_csv('Dataset/hotels.csv')
     df_merged = pd.merge(reviews_df, hotels_df[['hotel_id', 'hotel_name']], on='hotel_id', how='left')
     df_merged['combined_text'] = "Hotel: " + df_merged['hotel_name'].astype(str) + ". Review: " + df_merged['review_text'].astype(str)
+    
+    # Sampling for performance in demo
     sample_df = df_merged.sample(n=1000, random_state=42)
+    
     loader = DataFrameLoader(sample_df, page_content_column="combined_text")
     documents = loader.load()
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = text_splitter.split_documents(documents)
+    
     embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vector_store = FAISS.from_documents(docs, embedding_model)
-    return vector_store.as_retriever(search_kwargs={"k": 4})
+    return vector_store.as_retriever(search_kwargs={"k": 3})
+
+@st.cache_resource
+def setup_feature_vector_store():
+    """
+    Sets up the Feature Vector Retriever (Numerical Scores embedded as text).
+    Loads from disk if 'create_embeddings.py' has been run.
+    """
+    index_path = "feature_vector_index"
+    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+    if os.path.exists(index_path):
+        try:
+            vector_store = FAISS.load_local(index_path, embedding_model, allow_dangerous_deserialization=True)
+            return vector_store.as_retriever(search_kwargs={"k": 3})
+        except Exception as e:
+            st.warning(f"Could not load feature index: {e}. Run create_embeddings.py first.")
+            return None
+    else:
+        st.warning("Feature Vector Index not found. Please run `python create_embeddings.py` to generate it.")
+        return None
 
 @st.cache_resource
 def setup_graph_db():
@@ -134,7 +160,6 @@ def extract_entities_from_query(query, entity_db):
             detected[category] = found_val
 
     # 2. Dynamic Age Range (Regex)
-    # Matches "between 18 to 25", "18-25", "18 and 25"
     age_pattern = r"(?:between\s+)?(\d+)\s*(?:to|and|-)\s*(\d+)"
     age_match = re.search(age_pattern, query_lower)
     if age_match:
@@ -170,7 +195,6 @@ def get_hotels_by_city(driver, city_name):
         result = session.run(query, city=city_name)
         return [f"Hotel: {record['Hotel']} (Rating: {record['Score']})" for record in result]
 
-# --- TRAVELLER TYPE ---
 def get_hotels_by_traveller_type(driver, traveller_type):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
@@ -195,7 +219,6 @@ def get_best_countries_by_traveller_type(driver, traveller_type):
         result = session.run(query, type=traveller_type)
         return [f"Country: {record['Country']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
 
-# --- DEMOGRAPHICS ---
 def get_top_countries_by_gender(driver, gender):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(:Review)-[:REVIEWED]->(h:Hotel)-->(:City)-->(cntry:Country)
@@ -207,9 +230,6 @@ def get_top_countries_by_gender(driver, gender):
         result = session.run(query, gender=gender)
         return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
 
-# --- AGE GROUPS (UPDATED) ---
-
-# A. Get Countries (Existing)
 def get_top_countries_by_age_groups(driver, group_list):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(:Review)-[:REVIEWED]->(h:Hotel)-->(:City)-->(cntry:Country)
@@ -221,7 +241,6 @@ def get_top_countries_by_age_groups(driver, group_list):
         result = session.run(query, groups=group_list)
         return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
 
-# B. Get Hotels (NEW)
 def get_top_hotels_by_age_groups(driver, group_list):
     query = """
     MATCH (t:Traveller)-[:WROTE]->(r:Review)-[:REVIEWED]->(h:Hotel)
@@ -234,7 +253,6 @@ def get_top_hotels_by_age_groups(driver, group_list):
         result = session.run(query, groups=group_list)
         return [f"Hotel: {record['Hotel']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
 
-# --- SPECIAL SORTING ---
 def get_best_hotels_by_cleanliness(driver, city=None, country=None):
     query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_cleanliness IS NOT NULL"
     params = {}
@@ -297,74 +315,88 @@ def get_best_hotels_by_comfort(driver, city=None, country=None):
         return data if data else ["No comfort data found."]
 
 # ---------------------------------------------------------
-# 6. RESPONSE GENERATION
+# 6. RESPONSE GENERATION (MODIFIED FOR STRATEGY SELECTION)
 # ---------------------------------------------------------
-def generate_response(user_query, detected_entities, vector_retriever, driver, llm_client):
+def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode):
     context_parts = []
     
-    # 1. City Check
-    city = detected_entities.get("City")
-    if city:
-        graph_results = get_hotels_by_city(driver, city)
-        if graph_results: context_parts.append(f"Top Hotels in {city}:\n" + "\n".join(graph_results))
+    # --- A. BASELINE (GRAPH) STRATEGY ---
+    if retrieval_mode in ["Baseline (Graph Only)", "Hybrid (Graph + Embeddings)"]:
+        # 1. City Check
+        city = detected_entities.get("City")
+        if city:
+            graph_results = get_hotels_by_city(driver, city)
+            if graph_results: context_parts.append(f"Top Hotels in {city} (from KG):\n" + "\n".join(graph_results))
 
-    # 2. Traveller Type Check (Smart Routing)
-    t_type = detected_entities.get("Traveller Type")
-    if t_type:
-        if "country" in user_query.lower() or "countries" in user_query.lower():
-            country_results = get_best_countries_by_traveller_type(driver, t_type)
-            if country_results: context_parts.append(f"Top Rated Countries for '{t_type}':\n" + "\n".join(country_results))
-        else:
-            type_results = get_hotels_by_traveller_type(driver, t_type)
-            if type_results: context_parts.append(f"Top Hotels for '{t_type}':\n" + "\n".join(type_results))
+        # 2. Traveller Type
+        t_type = detected_entities.get("Traveller Type")
+        if t_type:
+            if "country" in user_query.lower() or "countries" in user_query.lower():
+                country_results = get_best_countries_by_traveller_type(driver, t_type)
+                if country_results: context_parts.append(f"Top Rated Countries for '{t_type}':\n" + "\n".join(country_results))
+            else:
+                type_results = get_hotels_by_traveller_type(driver, t_type)
+                if type_results: context_parts.append(f"Top Hotels for '{t_type}':\n" + "\n".join(type_results))
 
-    # 3. Demographics Check
-    gender = detected_entities.get("Gender")
-    if gender:
-        gender_results = get_top_countries_by_gender(driver, gender)
-        if gender_results: context_parts.append(f"Popular for {gender}:\n" + "\n".join(gender_results))
+        # 3. Demographics
+        gender = detected_entities.get("Gender")
+        if gender:
+            gender_results = get_top_countries_by_gender(driver, gender)
+            if gender_results: context_parts.append(f"Popular for {gender}:\n" + "\n".join(gender_results))
 
-    # 4. Age Groups (Smart Routing - NEW)
-    age_groups = detected_entities.get("Target Age Groups")
-    if age_groups:
-        # If user explicitly asks for countries, show countries. Otherwise, show Hotels.
-        if "country" in user_query.lower() or "countries" in user_query.lower():
-            age_results = get_top_countries_by_age_groups(driver, age_groups)
-            if age_results: context_parts.append(f"Popular Countries for Ages {age_groups}:\n" + "\n".join(age_results))
-        else:
-            hotel_results = get_top_hotels_by_age_groups(driver, age_groups)
-            if hotel_results: context_parts.append(f"Top Rated Hotels for Ages {age_groups}:\n" + "\n".join(hotel_results))
+        # 4. Age Groups
+        age_groups = detected_entities.get("Target Age Groups")
+        if age_groups:
+            if "country" in user_query.lower() or "countries" in user_query.lower():
+                age_results = get_top_countries_by_age_groups(driver, age_groups)
+                if age_results: context_parts.append(f"Popular Countries for Ages {age_groups}:\n" + "\n".join(age_results))
+            else:
+                hotel_results = get_top_hotels_by_age_groups(driver, age_groups)
+                if hotel_results: context_parts.append(f"Top Rated Hotels for Ages {age_groups}:\n" + "\n".join(hotel_results))
 
-    # 5. Sorting Requests
-    sort_type = detected_entities.get("Sort By")
-    target_city = detected_entities.get("City")
-    target_country = detected_entities.get("Country") or detected_entities.get("Destination Country")
-    location_str = target_city if target_city else (target_country if target_country else "Global")
+        # 5. Sorting
+        sort_type = detected_entities.get("Sort By")
+        target_city = detected_entities.get("City")
+        target_country = detected_entities.get("Country") or detected_entities.get("Destination Country")
+        location_str = target_city if target_city else (target_country if target_country else "Global")
 
-    if sort_type == "Cleanliness":
-        clean_results = get_best_hotels_by_cleanliness(driver, city=target_city, country=target_country)
-        context_parts.append(f"Cleanest Hotels ({location_str}):\n" + "\n".join(clean_results))
-    elif sort_type == "Value":
-        value_results = get_best_hotels_by_value(driver, city=target_city, country=target_country)
-        context_parts.append(f"Best Value Hotels ({location_str}):\n" + "\n".join(value_results))
-    elif sort_type == "Location":
-        loc_results = get_best_hotels_by_location(driver, city=target_city, country=target_country)
-        context_parts.append(f"Best Located Hotels ({location_str}):\n" + "\n".join(loc_results))
-    elif sort_type == "Comfort":
-        comf_results = get_best_hotels_by_comfort(driver, city=target_city, country=target_country)
-        context_parts.append(f"Most Comfortable Hotels ({location_str}):\n" + "\n".join(comf_results))
+        if sort_type == "Cleanliness":
+            clean_results = get_best_hotels_by_cleanliness(driver, city=target_city, country=target_country)
+            context_parts.append(f"Cleanest Hotels ({location_str}):\n" + "\n".join(clean_results))
+        elif sort_type == "Value":
+            value_results = get_best_hotels_by_value(driver, city=target_city, country=target_country)
+            context_parts.append(f"Best Value Hotels ({location_str}):\n" + "\n".join(value_results))
+        elif sort_type == "Location":
+            loc_results = get_best_hotels_by_location(driver, city=target_city, country=target_country)
+            context_parts.append(f"Best Located Hotels ({location_str}):\n" + "\n".join(loc_results))
+        elif sort_type == "Comfort":
+            comf_results = get_best_hotels_by_comfort(driver, city=target_city, country=target_country)
+            context_parts.append(f"Most Comfortable Hotels ({location_str}):\n" + "\n".join(comf_results))
 
-    # 6. Vector Layer
-    vector_results = vector_retriever.invoke(user_query)
-    vector_text = "\n".join([doc.page_content for doc in vector_results])
-    context_parts.append(f"Reviews:\n{vector_text}")
+    # --- B. EMBEDDINGS (VECTOR) STRATEGY ---
+    if retrieval_mode in ["Embeddings (Vector Only)", "Hybrid (Graph + Embeddings)"]:
+        # Text Reviews
+        vector_results = text_retriever.invoke(user_query)
+        text_reviews = "\n".join([doc.page_content for doc in vector_results])
+        context_parts.append(f"Relevant Text Reviews:\n{text_reviews}")
+
+        # Feature Profiles
+        if feature_retriever:
+            feature_results = feature_retriever.invoke(user_query)
+            feature_text = "\n".join([doc.page_content for doc in feature_results])
+            context_parts.append(f"Relevant Hotel Feature Profiles (Scores):\n{feature_text}")
     
+    # --- CONSTRUCT PROMPT ---
     full_context = "\n\n".join(context_parts)
     
+    if not full_context:
+        full_context = "No relevant data found in the selected retrieval source."
+
     entity_context_str = ", ".join([f"{k}: {v}" for k,v in detected_entities.items()])
     
     template = f"""
     You are a Hotel Recommender.
+    RETRIEVAL MODE: {retrieval_mode}
     DETECTED ENTITIES: {entity_context_str if entity_context_str else "None"}
     
     CONTEXT:
@@ -384,12 +416,22 @@ def generate_response(user_query, detected_entities, vector_retriever, driver, l
 # ---------------------------------------------------------
 st.title("🏨 Graph-RAG Hotel Assistant")
 
+# Sidebar for Retrieval Strategy
+st.sidebar.header("Configuration")
+retrieval_mode = st.sidebar.radio(
+    "Select Retrieval Strategy:",
+    ("Hybrid (Graph + Embeddings)", "Baseline (Graph Only)", "Embeddings (Vector Only)")
+)
+
 user_query = st.text_input("Ask me:", placeholder="e.g., Best hotels for people aged 18-24?")
 
 if st.button("Ask Assistant"):
     try:
-        with st.spinner("Processing..."):
-            vector_retriever = setup_vector_store()
+        with st.spinner(f"Processing using {retrieval_mode}..."):
+            # Load Retrievers
+            text_retriever = setup_text_vector_store()
+            feature_retriever = setup_feature_vector_store()
+            
             driver = setup_graph_db()
             entity_db = get_all_entities(driver)
             llm_client = InferenceClient(model="google/gemma-2-2b-it", token=HF_TOKEN)
@@ -399,11 +441,19 @@ if st.button("Ask Assistant"):
         if detected_entities:
             st.info(f"Entities: {detected_entities}")
         
-        answer, context = generate_response(user_query, detected_entities, vector_retriever, driver, llm_client)
+        answer, context = generate_response(
+            user_query, 
+            detected_entities, 
+            text_retriever, 
+            feature_retriever, 
+            driver, 
+            llm_client, 
+            retrieval_mode  # <--- PASS SELECTION HERE
+        )
         
         st.success("Recommendation:")
         st.write(answer)
-        with st.expander("Debug Context"):
+        with st.expander("Debug Context (See what was retrieved)"):
             st.text(context)
             
     except Exception as e:
