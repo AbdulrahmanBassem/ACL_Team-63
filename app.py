@@ -32,7 +32,7 @@ neo4j_config = load_config()
 NEO4J_URI = neo4j_config.get('URI', 'neo4j://127.0.0.1:7687')
 NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
-HF_TOKEN = "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"  # <--- YOUR TOKEN
+HF_TOKEN = "hf..."  # <--- YOUR TOKEN
 
 # ---------------------------------------------------------
 # 2. HELPER: AGE MAPPING
