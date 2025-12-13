@@ -26,19 +26,24 @@ def load_config(config_file='config.txt'):
                 if '=' in line:
                     key, value = line.strip().split('=', 1)
                     config[key] = value
-                    
     return config
 
 neo4j_config = load_config()
 NEO4J_URI = neo4j_config.get('URI', 'neo4j://127.0.0.1:7687')
 NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
-HF_TOKEN = ""  # <--- YOUR TOKEN
+HF_TOKEN = "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"  # <--- YOUR TOKEN
 
-# Map friendly names to Hugging Face Model IDs
+# --- MODEL DEFINITIONS ---
 EMBEDDING_MODELS = {
     "MiniLM (Fast)": "sentence-transformers/all-MiniLM-L6-v2",
     "MPNet (Accurate)": "sentence-transformers/all-mpnet-base-v2"
+}
+
+LLM_MODELS = {
+    "Gemma (2B)": "google/gemma-2-2b-it",
+    "Llama 3 (8B)": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "Mistral (7B - v0.2)": "mistralai/Mistral-7B-Instruct-v0.2"
 }
 
 # ---------------------------------------------------------
@@ -63,15 +68,21 @@ def map_range_to_groups(user_min, user_max):
 # ---------------------------------------------------------
 # 3. LLM WRAPPER & SETUP
 # ---------------------------------------------------------
-class GemmaLangChainWrapper(LLM):
+class HuggingFaceLLMWrapper(LLM):
+    """
+    Generic Wrapper for Hugging Face Inference API.
+    Works for Gemma, Llama, Mistral, etc.
+    """
     client: Any = Field(...)
+    model_name: str = Field(...)
     max_tokens: int = 500
     
     @property
     def _llm_type(self) -> str:
-        return "gemma_hf_api"
+        return "hf_inference_api"
         
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        # Most Instruct models (Gemma, Llama 3, Mistral) support the messages API
         response = self.client.chat_completion(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=self.max_tokens,
@@ -97,7 +108,6 @@ def setup_text_vector_store(model_repo_id):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = text_splitter.split_documents(documents)
     
-    # Use the model passed in arguments
     embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
     vector_store = FAISS.from_documents(docs, embedding_model)
     return vector_store.as_retriever(search_kwargs={"k": 3})
@@ -106,10 +116,8 @@ def setup_text_vector_store(model_repo_id):
 def setup_feature_vector_store(model_short_key, model_repo_id):
     """
     Sets up the Feature Vector Retriever.
-    It looks for the folder matching the selected model (e.g., feature_index_MiniLM).
+    It looks for the folder matching the selected embedding model.
     """
-    # Determine folder name based on the key (MiniLM or MPNet)
-    # We strip the " (Fast)" or " (Accurate)" parts for the folder name match
     clean_key = model_short_key.split(" ")[0] # "MiniLM" or "MPNet"
     index_path = f"feature_index_{clean_key}"
     
@@ -329,7 +337,7 @@ def get_best_hotels_by_comfort(driver, city=None, country=None):
 # ---------------------------------------------------------
 # 6. RESPONSE GENERATION (MODIFIED FOR STRATEGY SELECTION)
 # ---------------------------------------------------------
-def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode):
+def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode, llm_model_name):
     context_parts = []
     
     # --- A. BASELINE (GRAPH) STRATEGY ---
@@ -420,7 +428,8 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
     """
     prompt = PromptTemplate.from_template(template).format(context=full_context, question=user_query)
     
-    llm = GemmaLangChainWrapper(client=llm_client)
+    # Initialize the specific model wrapper
+    llm = HuggingFaceLLMWrapper(client=llm_client, model_name=llm_model_name)
     return llm.invoke(prompt), full_context
 
 # ---------------------------------------------------------
@@ -437,27 +446,39 @@ retrieval_mode = st.sidebar.radio(
     ("Hybrid (Graph + Embeddings)", "Baseline (Graph Only)", "Embeddings (Vector Only)")
 )
 
-# 2. Embedding Model Selection
 st.sidebar.markdown("---")
-model_choice = st.sidebar.selectbox(
+
+# 2. Embedding Model Selection
+embedding_model_choice = st.sidebar.selectbox(
     "Select Embedding Model:",
     list(EMBEDDING_MODELS.keys())
 )
-selected_model_repo = EMBEDDING_MODELS[model_choice]
+selected_embedding_repo = EMBEDDING_MODELS[embedding_model_choice]
+
+st.sidebar.markdown("---")
+
+# 3. LLM Model Selection
+llm_model_choice = st.sidebar.selectbox(
+    "Select LLM Model:",
+    list(LLM_MODELS.keys())
+)
+selected_llm_repo = LLM_MODELS[llm_model_choice]
 
 user_query = st.text_input("Ask me:", placeholder="e.g., Best hotels for people aged 18-24?")
 
 if st.button("Ask Assistant"):
     try:
-        with st.spinner(f"Processing using {retrieval_mode} with {model_choice}..."):
+        with st.spinner(f"Processing with {llm_model_choice} using {retrieval_mode}..."):
             
-            # Setup Retrievers with the SELECTED MODEL
-            text_retriever = setup_text_vector_store(selected_model_repo)
-            feature_retriever = setup_feature_vector_store(model_choice, selected_model_repo)
+            # Setup Retrievers with the SELECTED EMBEDDING MODEL
+            text_retriever = setup_text_vector_store(selected_embedding_repo)
+            feature_retriever = setup_feature_vector_store(embedding_model_choice, selected_embedding_repo)
             
             driver = setup_graph_db()
             entity_db = get_all_entities(driver)
-            llm_client = InferenceClient(model="google/gemma-2-2b-it", token=HF_TOKEN)
+            
+            # Setup LLM Client with SELECTED LLM MODEL
+            llm_client = InferenceClient(model=selected_llm_repo, token=HF_TOKEN)
         
         detected_entities = extract_entities_from_query(user_query, entity_db)
         
@@ -471,7 +492,8 @@ if st.button("Ask Assistant"):
             feature_retriever, 
             driver, 
             llm_client, 
-            retrieval_mode
+            retrieval_mode,
+            llm_model_choice # Pass model name for logging/debug if needed
         )
         
         st.success("Recommendation:")
