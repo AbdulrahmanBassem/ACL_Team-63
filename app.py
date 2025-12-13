@@ -26,13 +26,20 @@ def load_config(config_file='config.txt'):
                 if '=' in line:
                     key, value = line.strip().split('=', 1)
                     config[key] = value
+                    
     return config
 
 neo4j_config = load_config()
 NEO4J_URI = neo4j_config.get('URI', 'neo4j://127.0.0.1:7687')
 NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
-HF_TOKEN = ""  
+HF_TOKEN = ""  # <--- YOUR TOKEN
+
+# Map friendly names to Hugging Face Model IDs
+EMBEDDING_MODELS = {
+    "MiniLM (Fast)": "sentence-transformers/all-MiniLM-L6-v2",
+    "MPNet (Accurate)": "sentence-transformers/all-mpnet-base-v2"
+}
 
 # ---------------------------------------------------------
 # 2. HELPER: AGE MAPPING
@@ -73,16 +80,16 @@ class GemmaLangChainWrapper(LLM):
         return response.choices[0].message["content"]
 
 @st.cache_resource
-def setup_text_vector_store():
+def setup_text_vector_store(model_repo_id):
     """
-    Sets up the Standard Text Retriever (Review Content).
+    Sets up the Standard Text Retriever (Review Content) using the SELECTED model.
     """
     reviews_df = pd.read_csv('Dataset/reviews.csv')
     hotels_df = pd.read_csv('Dataset/hotels.csv')
     df_merged = pd.merge(reviews_df, hotels_df[['hotel_id', 'hotel_name']], on='hotel_id', how='left')
     df_merged['combined_text'] = "Hotel: " + df_merged['hotel_name'].astype(str) + ". Review: " + df_merged['review_text'].astype(str)
     
-    # Sampling for performance in demo
+    # Sampling for performance
     sample_df = df_merged.sample(n=1000, random_state=42)
     
     loader = DataFrameLoader(sample_df, page_content_column="combined_text")
@@ -90,28 +97,33 @@ def setup_text_vector_store():
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = text_splitter.split_documents(documents)
     
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # Use the model passed in arguments
+    embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
     vector_store = FAISS.from_documents(docs, embedding_model)
     return vector_store.as_retriever(search_kwargs={"k": 3})
 
 @st.cache_resource
-def setup_feature_vector_store():
+def setup_feature_vector_store(model_short_key, model_repo_id):
     """
-    Sets up the Feature Vector Retriever (Numerical Scores embedded as text).
-    Loads from disk if 'create_embeddings.py' has been run.
+    Sets up the Feature Vector Retriever.
+    It looks for the folder matching the selected model (e.g., feature_index_MiniLM).
     """
-    index_path = "feature_vector_index"
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # Determine folder name based on the key (MiniLM or MPNet)
+    # We strip the " (Fast)" or " (Accurate)" parts for the folder name match
+    clean_key = model_short_key.split(" ")[0] # "MiniLM" or "MPNet"
+    index_path = f"feature_index_{clean_key}"
+    
+    embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
     
     if os.path.exists(index_path):
         try:
             vector_store = FAISS.load_local(index_path, embedding_model, allow_dangerous_deserialization=True)
             return vector_store.as_retriever(search_kwargs={"k": 3})
         except Exception as e:
-            st.warning(f"Could not load feature index: {e}. Run create_embeddings.py first.")
+            st.warning(f"Could not load feature index '{index_path}': {e}. Re-run create_embeddings.py.")
             return None
     else:
-        st.warning("Feature Vector Index not found. Please run `python create_embeddings.py` to generate it.")
+        st.warning(f"Index folder '{index_path}' not found. Please run `create_embeddings.py` to generate it.")
         return None
 
 @st.cache_resource
@@ -416,21 +428,32 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
 # ---------------------------------------------------------
 st.title("🏨 Graph-RAG Hotel Assistant")
 
-# Sidebar for Retrieval Strategy
+# Sidebar for Retrieval Strategy & Model Selection
 st.sidebar.header("Configuration")
+
+# 1. Retrieval Mode
 retrieval_mode = st.sidebar.radio(
     "Select Retrieval Strategy:",
     ("Hybrid (Graph + Embeddings)", "Baseline (Graph Only)", "Embeddings (Vector Only)")
 )
 
+# 2. Embedding Model Selection
+st.sidebar.markdown("---")
+model_choice = st.sidebar.selectbox(
+    "Select Embedding Model:",
+    list(EMBEDDING_MODELS.keys())
+)
+selected_model_repo = EMBEDDING_MODELS[model_choice]
+
 user_query = st.text_input("Ask me:", placeholder="e.g., Best hotels for people aged 18-24?")
 
 if st.button("Ask Assistant"):
     try:
-        with st.spinner(f"Processing using {retrieval_mode}..."):
-            # Load Retrievers
-            text_retriever = setup_text_vector_store()
-            feature_retriever = setup_feature_vector_store()
+        with st.spinner(f"Processing using {retrieval_mode} with {model_choice}..."):
+            
+            # Setup Retrievers with the SELECTED MODEL
+            text_retriever = setup_text_vector_store(selected_model_repo)
+            feature_retriever = setup_feature_vector_store(model_choice, selected_model_repo)
             
             driver = setup_graph_db()
             entity_db = get_all_entities(driver)
@@ -448,7 +471,7 @@ if st.button("Ask Assistant"):
             feature_retriever, 
             driver, 
             llm_client, 
-            retrieval_mode  # <--- PASS SELECTION HERE
+            retrieval_mode
         )
         
         st.success("Recommendation:")

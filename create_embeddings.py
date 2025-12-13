@@ -5,19 +5,33 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
+# Define the models we want to support
+EMBEDDING_MODELS = {
+    "MiniLM": "sentence-transformers/all-MiniLM-L6-v2",
+    "MPNet": "sentence-transformers/all-mpnet-base-v2"
+}
+
 def create_feature_embeddings():
     # 1. Load Data
-    csv_path = 'Dataset/reviews.csv'
-    if not os.path.exists(csv_path):
-        print(f"Error: {csv_path} not found.")
+    reviews_path = 'Dataset/reviews.csv'
+    hotels_path = 'Dataset/hotels.csv'
+    
+    if not os.path.exists(reviews_path) or not os.path.exists(hotels_path):
+        print(f"Error: Files not found. Ensure {reviews_path} and {hotels_path} exist.")
         return
 
-    print("Loading reviews...")
-    df = pd.read_csv(csv_path)
+    print("Loading reviews and hotels...")
+    reviews_df = pd.read_csv(reviews_path)
+    hotels_df = pd.read_csv(hotels_path)
 
-    # 2. Select Columns and Handle NaNs
+    # 2. Merge Dataframes to get Hotel Name
+    print("Merging data...")
+    df_merged = pd.merge(reviews_df, hotels_df[['hotel_id', 'hotel_name']], on='hotel_id', how='left')
+
+    # 3. Select Columns and Handle NaNs
     feature_cols = [
         'hotel_id', 
+        'hotel_name',
         'score_cleanliness', 
         'score_comfort', 
         'score_facilities', 
@@ -26,15 +40,14 @@ def create_feature_embeddings():
         'score_value_for_money'
     ]
     
-    # Fill missing scores with 0 or a neutral value
-    df_features = df[feature_cols].copy().fillna(0)
+    df_features = df_merged[feature_cols].copy()
+    df_features[feature_cols[2:]] = df_features[feature_cols[2:]].fillna(0)
+    df_features['hotel_name'] = df_features['hotel_name'].fillna("Unknown Hotel")
 
-    # 3. Create Semantic Feature Strings
-    # This converts the numerical vector into a text description the LLM/Embedder can understand.
-    # Format: "Hotel ID: <id>. Cleanliness: <score>, Comfort: <score>, ..."
+    # 4. Create Semantic Feature Strings
     def build_feature_string(row):
         return (
-            f"Hotel ID: {row['hotel_id']}. "
+            f"Hotel: {row['hotel_name']} (ID: {row['hotel_id']}). "
             f"Cleanliness: {row['score_cleanliness']}, "
             f"Comfort: {row['score_comfort']}, "
             f"Facilities: {row['score_facilities']}, "
@@ -46,25 +59,29 @@ def create_feature_embeddings():
     print("Constructing feature strings...")
     df_features['feature_text'] = df_features.apply(build_feature_string, axis=1)
 
-    # 4. Prepare for Vector Store
-    # We use LangChain's loader to treat these strings as "documents"
     loader = DataFrameLoader(df_features, page_content_column="feature_text")
     documents = loader.load()
 
-    # 5. Splitter (Optional for single sentences, but good practice for consistency)
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = text_splitter.split_documents(documents)
 
-    # 6. Generate Embeddings & Build Index
-    print("Generating embeddings (this may take a moment)...")
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    
-    vector_store = FAISS.from_documents(docs, embedding_model)
+    # ---------------------------------------------------------
+    # LOOP THROUGH MODELS AND GENERATE INDICES
+    # ---------------------------------------------------------
+    for model_short_name, model_repo_id in EMBEDDING_MODELS.items():
+        print(f"\n--- Processing Model: {model_short_name} ({model_repo_id}) ---")
+        
+        # Initialize Embedder
+        embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
+        
+        # Create Vector Store
+        print(f"Generating embeddings for {model_short_name}...")
+        vector_store = FAISS.from_documents(docs, embedding_model)
 
-    # 7. Save Index Locally
-    index_name = "feature_vector_index"
-    vector_store.save_local(index_name)
-    print(f"Success! FAISS index saved to folder: '{index_name}'")
+        # Save to a specific folder e.g., "feature_index_MiniLM"
+        folder_name = f"feature_index_{model_short_name}"
+        vector_store.save_local(folder_name)
+        print(f"Success! Index saved to folder: '{folder_name}'")
 
 if __name__ == "__main__":
     create_feature_embeddings()
