@@ -1,9 +1,11 @@
 import pandas as pd
 import os
+import time
 from langchain_community.document_loaders import DataFrameLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Neo4jVector
+from neo4j import GraphDatabase
 
 # Define the models we want to support
 EMBEDDING_MODELS = {
@@ -11,7 +13,26 @@ EMBEDDING_MODELS = {
     "MPNet": "sentence-transformers/all-mpnet-base-v2"
 }
 
+# Batch size controls how many documents are sent to Neo4j at once
+BATCH_SIZE = 200 
+
+def load_config(config_file='config.txt'):
+    config = {}
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            for line in f:
+                if '=' in line:
+                    key, value = line.strip().split('=', 1)
+                    config[key] = value
+    return config
+
 def create_feature_embeddings():
+    # 0. Load Configuration
+    config = load_config()
+    NEO4J_URI = config.get('URI', 'neo4j://127.0.0.1:7687')
+    NEO4J_USER = config.get('USERNAME', 'neo4j')
+    NEO4J_PASSWORD = config.get('PASSWORD', 'password')
+
     # 1. Load Data
     reviews_path = 'Dataset/reviews.csv'
     hotels_path = 'Dataset/hotels.csv'
@@ -64,24 +85,68 @@ def create_feature_embeddings():
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     docs = text_splitter.split_documents(documents)
+    print(f"Total Documents to Process: {len(docs)}")
 
     # ---------------------------------------------------------
-    # LOOP THROUGH MODELS AND GENERATE INDICES
+    # LOOP THROUGH MODELS AND SAVE TO NEO4J (WITH BATCHING)
     # ---------------------------------------------------------
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+
     for model_short_name, model_repo_id in EMBEDDING_MODELS.items():
         print(f"\n--- Processing Model: {model_short_name} ({model_repo_id}) ---")
         
+        index_name = f"feature_index_{model_short_name}"
+        node_label = f"Feature_{model_short_name}" 
+
+        # Clean up existing nodes
+        print(f"Cleaning existing '{node_label}' nodes in Neo4j...")
+        with driver.session() as session:
+            session.run(f"MATCH (n:{node_label}) DETACH DELETE n")
+            try:
+                session.run(f"DROP INDEX {index_name} IF EXISTS")
+            except:
+                pass
+
         # Initialize Embedder
         embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
         
-        # Create Vector Store
-        print(f"Generating embeddings for {model_short_name}...")
-        vector_store = FAISS.from_documents(docs, embedding_model)
+        # Split documents into batches
+        total_docs = len(docs)
+        batches = [docs[i:i + BATCH_SIZE] for i in range(0, total_docs, BATCH_SIZE)]
+        
+        vector_store = None
+        
+        print(f"Starting ingestion in {len(batches)} batches of {BATCH_SIZE}...")
+        
+        for i, batch in enumerate(batches):
+            print(f"  > Processing batch {i+1}/{len(batches)} ({len(batch)} docs)...")
+            
+            try:
+                if vector_store is None:
+                    # First batch: Create the Vector Store and Index
+                    vector_store = Neo4jVector.from_documents(
+                        batch,
+                        embedding_model,
+                        url=NEO4J_URI,
+                        username=NEO4J_USER,
+                        password=NEO4J_PASSWORD,
+                        index_name=index_name,
+                        node_label=node_label,
+                        embedding_node_property="embedding",
+                        text_node_property="text"
+                    )
+                else:
+                    # Subsequent batches: Add to existing store
+                    vector_store.add_documents(batch)
+                
+            except Exception as e:
+                print(f"Error in batch {i+1}: {e}")
+                # Optional: break or continue depending on desired behavior
+                raise e
 
-        # Save to a specific folder e.g., "feature_index_MiniLM"
-        folder_name = f"feature_index_{model_short_name}"
-        vector_store.save_local(folder_name)
-        print(f"Success! Index saved to folder: '{folder_name}'")
+        print(f"Success! All embeddings for {model_short_name} saved to Neo4j.")
+
+    driver.close()
 
 if __name__ == "__main__":
     create_feature_embeddings()

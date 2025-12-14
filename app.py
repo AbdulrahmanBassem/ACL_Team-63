@@ -6,7 +6,7 @@ from neo4j import GraphDatabase
 from langchain_community.document_loaders import DataFrameLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS, Neo4jVector
 from langchain_core.prompts import PromptTemplate
 from huggingface_hub import InferenceClient
 from langchain_core.language_models.llms import LLM
@@ -32,7 +32,7 @@ neo4j_config = load_config()
 NEO4J_URI = neo4j_config.get('URI', 'neo4j://127.0.0.1:7687')
 NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
-HF_TOKEN = "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"  # <--- YOUR TOKEN
+HF_TOKEN = "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"  # <--- YOUR TOKEN
 
 # --- MODEL DEFINITIONS ---
 EMBEDDING_MODELS = {
@@ -42,8 +42,8 @@ EMBEDDING_MODELS = {
 
 LLM_MODELS = {
     "Gemma (2B)": "google/gemma-2-2b-it",
-    "Llama 3 (8B)": "meta-llama/Meta-Llama-3-8B-Instruct",
-    "Mistral (7B - v0.2)": "mistralai/Mistral-7B-Instruct-v0.2"
+    "Mistral (7B - v0.2)": "mistralai/Mistral-7B-Instruct-v0.2",
+    "Llama 3 (8B)": "meta-llama/Meta-Llama-3-8B-Instruct"
 }
 
 # ---------------------------------------------------------
@@ -82,7 +82,7 @@ class HuggingFaceLLMWrapper(LLM):
         return "hf_inference_api"
         
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        # Most Instruct models (Gemma, Llama 3, Mistral) support the messages API
+        # Most Instruct models support the messages API
         response = self.client.chat_completion(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=self.max_tokens,
@@ -93,7 +93,9 @@ class HuggingFaceLLMWrapper(LLM):
 @st.cache_resource
 def setup_text_vector_store(model_repo_id):
     """
-    Sets up the Standard Text Retriever (Review Content) using the SELECTED model.
+    Sets up the Standard Text Retriever (Review Content).
+    We still use FAISS (Local) for this part as per your previous setup, 
+    but we use the selected embedding model.
     """
     reviews_df = pd.read_csv('Dataset/reviews.csv')
     hotels_df = pd.read_csv('Dataset/hotels.csv')
@@ -113,25 +115,30 @@ def setup_text_vector_store(model_repo_id):
     return vector_store.as_retriever(search_kwargs={"k": 3})
 
 @st.cache_resource
-def setup_feature_vector_store(model_short_key, model_repo_id):
+def setup_feature_vector_store_neo4j(model_short_key, model_repo_id):
     """
-    Sets up the Feature Vector Retriever.
-    It looks for the folder matching the selected embedding model.
+    Sets up the Feature Vector Retriever connecting to NEO4J.
     """
     clean_key = model_short_key.split(" ")[0] # "MiniLM" or "MPNet"
-    index_path = f"feature_index_{clean_key}"
+    index_name = f"feature_index_{clean_key}"
     
     embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
-    
-    if os.path.exists(index_path):
-        try:
-            vector_store = FAISS.load_local(index_path, embedding_model, allow_dangerous_deserialization=True)
-            return vector_store.as_retriever(search_kwargs={"k": 3})
-        except Exception as e:
-            st.warning(f"Could not load feature index '{index_path}': {e}. Re-run create_embeddings.py.")
-            return None
-    else:
-        st.warning(f"Index folder '{index_path}' not found. Please run `create_embeddings.py` to generate it.")
+
+    try:
+        # Connect to existing index in Neo4j
+        vector_store = Neo4jVector.from_existing_index(
+            embedding_model,
+            url=NEO4J_URI,
+            username=NEO4J_USER,
+            password=NEO4J_PASSWORD,
+            index_name=index_name,
+            embedding_node_property="embedding",
+            text_node_property="text"
+        )
+        return vector_store.as_retriever(search_kwargs={"k": 3})
+        
+    except Exception as e:
+        st.error(f"Failed to connect to Neo4j Index '{index_name}': {e}")
         return None
 
 @st.cache_resource
@@ -335,7 +342,7 @@ def get_best_hotels_by_comfort(driver, city=None, country=None):
         return data if data else ["No comfort data found."]
 
 # ---------------------------------------------------------
-# 6. RESPONSE GENERATION (MODIFIED FOR STRATEGY SELECTION)
+# 6. RESPONSE GENERATION
 # ---------------------------------------------------------
 def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode, llm_model_name):
     context_parts = []
@@ -404,7 +411,7 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
         if feature_retriever:
             feature_results = feature_retriever.invoke(user_query)
             feature_text = "\n".join([doc.page_content for doc in feature_results])
-            context_parts.append(f"Relevant Hotel Feature Profiles (Scores):\n{feature_text}")
+            context_parts.append(f"Relevant Hotel Feature Profiles (Scores from Neo4j):\n{feature_text}")
     
     # --- CONSTRUCT PROMPT ---
     full_context = "\n\n".join(context_parts)
@@ -472,7 +479,9 @@ if st.button("Ask Assistant"):
             
             # Setup Retrievers with the SELECTED EMBEDDING MODEL
             text_retriever = setup_text_vector_store(selected_embedding_repo)
-            feature_retriever = setup_feature_vector_store(embedding_model_choice, selected_embedding_repo)
+            
+            # Use the Neo4j Setup Function here
+            feature_retriever = setup_feature_vector_store_neo4j(embedding_model_choice, selected_embedding_repo)
             
             driver = setup_graph_db()
             entity_db = get_all_entities(driver)
@@ -493,7 +502,7 @@ if st.button("Ask Assistant"):
             driver, 
             llm_client, 
             retrieval_mode,
-            llm_model_choice # Pass model name for logging/debug if needed
+            llm_model_choice
         )
         
         st.success("Recommendation:")
