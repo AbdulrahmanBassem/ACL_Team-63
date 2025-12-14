@@ -71,7 +71,6 @@ def map_range_to_groups(user_min, user_max):
 class HuggingFaceLLMWrapper(LLM):
     """
     Generic Wrapper for Hugging Face Inference API.
-    Works for Gemma, Llama, Mistral, etc.
     """
     client: Any = Field(...)
     model_name: str = Field(...)
@@ -82,7 +81,6 @@ class HuggingFaceLLMWrapper(LLM):
         return "hf_inference_api"
         
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        # Most Instruct models support the messages API
         response = self.client.chat_completion(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=self.max_tokens,
@@ -94,8 +92,6 @@ class HuggingFaceLLMWrapper(LLM):
 def setup_text_vector_store(model_repo_id):
     """
     Sets up the Standard Text Retriever (Review Content).
-    We still use FAISS (Local) for this part as per your previous setup, 
-    but we use the selected embedding model.
     """
     reviews_df = pd.read_csv('Dataset/reviews.csv')
     hotels_df = pd.read_csv('Dataset/hotels.csv')
@@ -209,7 +205,7 @@ def extract_entities_from_query(query, entity_db):
     return detected
 
 # ---------------------------------------------------------
-# 5. CYPHER QUERIES
+# 5. CYPHER QUERIES (UPDATED TO RETURN QUERY STRINGS)
 # ---------------------------------------------------------
 def get_hotels_by_city(driver, city_name):
     query = """
@@ -220,7 +216,7 @@ def get_hotels_by_city(driver, city_name):
     """
     with driver.session() as session:
         result = session.run(query, city=city_name)
-        return [f"Hotel: {record['Hotel']} (Rating: {record['Score']})" for record in result]
+        return [f"Hotel: {record['Hotel']} (Rating: {record['Score']})" for record in result], query
 
 def get_hotels_by_traveller_type(driver, traveller_type):
     query = """
@@ -232,7 +228,7 @@ def get_hotels_by_traveller_type(driver, traveller_type):
     """
     with driver.session() as session:
         result = session.run(query, type=traveller_type)
-        return [f"Hotel: {record['hotelName']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
+        return [f"Hotel: {record['hotelName']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result], query
 
 def get_best_countries_by_traveller_type(driver, traveller_type):
     query = """
@@ -244,7 +240,7 @@ def get_best_countries_by_traveller_type(driver, traveller_type):
     """
     with driver.session() as session:
         result = session.run(query, type=traveller_type)
-        return [f"Country: {record['Country']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
+        return [f"Country: {record['Country']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result], query
 
 def get_top_countries_by_gender(driver, gender):
     query = """
@@ -255,7 +251,7 @@ def get_top_countries_by_gender(driver, gender):
     """
     with driver.session() as session:
         result = session.run(query, gender=gender)
-        return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
+        return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result], query
 
 def get_top_countries_by_age_groups(driver, group_list):
     query = """
@@ -266,7 +262,7 @@ def get_top_countries_by_age_groups(driver, group_list):
     """
     with driver.session() as session:
         result = session.run(query, groups=group_list)
-        return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result]
+        return [f"Country: {record['Country']} ({record['Visits']} visits)" for record in result], query
 
 def get_top_hotels_by_age_groups(driver, group_list):
     query = """
@@ -278,7 +274,7 @@ def get_top_hotels_by_age_groups(driver, group_list):
     """
     with driver.session() as session:
         result = session.run(query, groups=group_list)
-        return [f"Hotel: {record['Hotel']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result]
+        return [f"Hotel: {record['Hotel']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result], query
 
 def get_best_hotels_by_cleanliness(driver, city=None, country=None):
     query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_cleanliness IS NOT NULL"
@@ -294,7 +290,7 @@ def get_best_hotels_by_cleanliness(driver, city=None, country=None):
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Cleanliness: {round(record['AvgScore'], 2)})" for record in result]
         scope = f"in {city}" if city else (f"in {country}" if country else "Globally")
-        return data if data else [f"No cleanliness data found {scope}."]
+        return (data if data else [f"No cleanliness data found {scope}."]), query_base + query_end
 
 def get_best_hotels_by_value(driver, city=None, country=None):
     query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_value_for_money IS NOT NULL"
@@ -309,7 +305,7 @@ def get_best_hotels_by_value(driver, city=None, country=None):
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Value Score: {round(record['AvgScore'], 2)})" for record in result]
-        return data if data else ["No value data found."]
+        return (data if data else ["No value data found."]), query_base + query_end
 
 def get_best_hotels_by_location(driver, city=None, country=None):
     query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_location IS NOT NULL"
@@ -324,7 +320,7 @@ def get_best_hotels_by_location(driver, city=None, country=None):
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Location Score: {round(record['AvgScore'], 2)})" for record in result]
-        return data if data else ["No location data found."]
+        return (data if data else ["No location data found."]), query_base + query_end
 
 def get_best_hotels_by_comfort(driver, city=None, country=None):
     query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_comfort IS NOT NULL"
@@ -339,46 +335,53 @@ def get_best_hotels_by_comfort(driver, city=None, country=None):
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Comfort Score: {round(record['AvgScore'], 2)})" for record in result]
-        return data if data else ["No comfort data found."]
+        return (data if data else ["No comfort data found."]), query_base + query_end
 
 # ---------------------------------------------------------
-# 6. RESPONSE GENERATION
+# 6. RESPONSE GENERATION (UPDATED TO COLLECT QUERIES)
 # ---------------------------------------------------------
 def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode, llm_model_name):
     context_parts = []
+    executed_queries = []  # List to track queries
     
     # --- A. BASELINE (GRAPH) STRATEGY ---
     if retrieval_mode in ["Baseline (Graph Only)", "Hybrid (Graph + Embeddings)"]:
         # 1. City Check
         city = detected_entities.get("City")
         if city:
-            graph_results = get_hotels_by_city(driver, city)
+            graph_results, query_str = get_hotels_by_city(driver, city)
+            executed_queries.append(f"### Intent: City Search ({city})\n{query_str}")
             if graph_results: context_parts.append(f"Top Hotels in {city} (from KG):\n" + "\n".join(graph_results))
 
         # 2. Traveller Type
         t_type = detected_entities.get("Traveller Type")
         if t_type:
             if "country" in user_query.lower() or "countries" in user_query.lower():
-                country_results = get_best_countries_by_traveller_type(driver, t_type)
+                country_results, query_str = get_best_countries_by_traveller_type(driver, t_type)
+                executed_queries.append(f"### Intent: Country by Traveller Type ({t_type})\n{query_str}")
                 if country_results: context_parts.append(f"Top Rated Countries for '{t_type}':\n" + "\n".join(country_results))
             else:
-                type_results = get_hotels_by_traveller_type(driver, t_type)
+                type_results, query_str = get_hotels_by_traveller_type(driver, t_type)
+                executed_queries.append(f"### Intent: Hotel by Traveller Type ({t_type})\n{query_str}")
                 if type_results: context_parts.append(f"Top Hotels for '{t_type}':\n" + "\n".join(type_results))
 
         # 3. Demographics
         gender = detected_entities.get("Gender")
         if gender:
-            gender_results = get_top_countries_by_gender(driver, gender)
+            gender_results, query_str = get_top_countries_by_gender(driver, gender)
+            executed_queries.append(f"### Intent: Gender Demographics ({gender})\n{query_str}")
             if gender_results: context_parts.append(f"Popular for {gender}:\n" + "\n".join(gender_results))
 
         # 4. Age Groups
         age_groups = detected_entities.get("Target Age Groups")
         if age_groups:
             if "country" in user_query.lower() or "countries" in user_query.lower():
-                age_results = get_top_countries_by_age_groups(driver, age_groups)
+                age_results, query_str = get_top_countries_by_age_groups(driver, age_groups)
+                executed_queries.append(f"### Intent: Country by Age Group ({age_groups})\n{query_str}")
                 if age_results: context_parts.append(f"Popular Countries for Ages {age_groups}:\n" + "\n".join(age_results))
             else:
-                hotel_results = get_top_hotels_by_age_groups(driver, age_groups)
+                hotel_results, query_str = get_top_hotels_by_age_groups(driver, age_groups)
+                executed_queries.append(f"### Intent: Hotel by Age Group ({age_groups})\n{query_str}")
                 if hotel_results: context_parts.append(f"Top Rated Hotels for Ages {age_groups}:\n" + "\n".join(hotel_results))
 
         # 5. Sorting
@@ -388,16 +391,20 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
         location_str = target_city if target_city else (target_country if target_country else "Global")
 
         if sort_type == "Cleanliness":
-            clean_results = get_best_hotels_by_cleanliness(driver, city=target_city, country=target_country)
+            clean_results, query_str = get_best_hotels_by_cleanliness(driver, city=target_city, country=target_country)
+            executed_queries.append(f"### Intent: Sort by Cleanliness ({location_str})\n{query_str}")
             context_parts.append(f"Cleanest Hotels ({location_str}):\n" + "\n".join(clean_results))
         elif sort_type == "Value":
-            value_results = get_best_hotels_by_value(driver, city=target_city, country=target_country)
+            value_results, query_str = get_best_hotels_by_value(driver, city=target_city, country=target_country)
+            executed_queries.append(f"### Intent: Sort by Value ({location_str})\n{query_str}")
             context_parts.append(f"Best Value Hotels ({location_str}):\n" + "\n".join(value_results))
         elif sort_type == "Location":
-            loc_results = get_best_hotels_by_location(driver, city=target_city, country=target_country)
+            loc_results, query_str = get_best_hotels_by_location(driver, city=target_city, country=target_country)
+            executed_queries.append(f"### Intent: Sort by Location ({location_str})\n{query_str}")
             context_parts.append(f"Best Located Hotels ({location_str}):\n" + "\n".join(loc_results))
         elif sort_type == "Comfort":
-            comf_results = get_best_hotels_by_comfort(driver, city=target_city, country=target_country)
+            comf_results, query_str = get_best_hotels_by_comfort(driver, city=target_city, country=target_country)
+            executed_queries.append(f"### Intent: Sort by Comfort ({location_str})\n{query_str}")
             context_parts.append(f"Most Comfortable Hotels ({location_str}):\n" + "\n".join(comf_results))
 
     # --- B. EMBEDDINGS (VECTOR) STRATEGY ---
@@ -437,7 +444,7 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
     
     # Initialize the specific model wrapper
     llm = HuggingFaceLLMWrapper(client=llm_client, model_name=llm_model_name)
-    return llm.invoke(prompt), full_context
+    return llm.invoke(prompt), full_context, executed_queries
 
 # ---------------------------------------------------------
 # 7. MAIN UI
@@ -494,7 +501,7 @@ if st.button("Ask Assistant"):
         if detected_entities:
             st.info(f"Entities: {detected_entities}")
         
-        answer, context = generate_response(
+        answer, context, queries = generate_response(
             user_query, 
             detected_entities, 
             text_retriever, 
@@ -507,6 +514,13 @@ if st.button("Ask Assistant"):
         
         st.success("Recommendation:")
         st.write(answer)
+        
+        # New Expander for Cypher Queries
+        if queries:
+            with st.expander("Cypher Queries Executed"):
+                for q in queries:
+                    st.code(q, language='cypher')
+                    
         with st.expander("Debug Context (See what was retrieved)"):
             st.text(context)
             
