@@ -9,5 +9,5 @@ before runing in vs code
 
 ## Milestone 3
 
--- app.py
--- create_embeddings.py
+- app.py
+- create_embeddings.py
