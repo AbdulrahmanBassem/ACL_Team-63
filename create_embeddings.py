@@ -112,7 +112,6 @@ def create_feature_embeddings():
             
             try:
                 if vector_store is None:
-                    # First batch: Create the Vector Store and Index
                     vector_store = Neo4jVector.from_documents(
                         batch,
                         embedding_model,
@@ -125,12 +124,10 @@ def create_feature_embeddings():
                         text_node_property="text"
                     )
                 else:
-                    # Subsequent batches: Add to existing store
                     vector_store.add_documents(batch)
                 
             except Exception as e:
                 print(f"Error in batch {i+1}: {e}")
-                # Optional: break or continue depending on desired behavior
                 raise e
 
         print(f"Success! All embeddings for {model_short_name} saved to Neo4j.")
