@@ -122,7 +122,7 @@ def setup_feature_vector_store_neo4j(model_short_key, model_repo_id):
             embedding_node_property="embedding",
             text_node_property="text"
         )
-        return vector_store.as_retriever(search_kwargs={"k": 3})
+        return vector_store.as_retriever(search_kwargs={"k": 10}) # Fetch more initially, then deduplicate
     except Exception as e:
         st.error(f"Failed to connect to Neo4j Index '{index_name}': {e}")
         return None
@@ -209,7 +209,7 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, city=entities["City"])
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # B. Country Intent (NEW)
+        # B. Country Intent
         elif intent == "Country" and "Country" in entities:
             query = """
             MATCH (h:Hotel)-[:LOCATED_IN]->(:City)-[:LOCATED_IN]->(c:Country)
@@ -393,15 +393,29 @@ def get_top_hotels_by_age_groups(driver, group_list):
         return [f"Hotel: {record['Hotel']} (Avg Rating: {round(record['avgRating'], 2)})" for record in result], query
 
 def get_best_hotels_by_cleanliness(driver, city=None, country=None):
-    query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_cleanliness IS NOT NULL"
+    query_base = """
+    MATCH (r:Review)-[:REVIEWED]->(h:Hotel) 
+    WHERE r.score_cleanliness IS NOT NULL
+    """
     params = {}
     if city:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(c:City) WHERE toLower(c.name) = toLower($city) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(c:City) 
+        WHERE toLower(c.name) = toLower($city) 
+        """
         params["city"] = city
     elif country:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) WHERE toLower(cntry.name) = toLower($country) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) 
+        WHERE toLower(cntry.name) = toLower($country) 
+        """
         params["country"] = country
-    query_end = " WITH h.name AS Hotel, AVG(r.score_cleanliness) AS AvgScore RETURN Hotel, AvgScore ORDER BY AvgScore DESC LIMIT 5"
+    query_end = """
+    WITH h.name AS Hotel, AVG(r.score_cleanliness) AS AvgScore 
+    RETURN Hotel, AvgScore 
+    ORDER BY AvgScore DESC 
+    LIMIT 5
+    """
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Cleanliness: {round(record['AvgScore'], 2)})" for record in result]
@@ -409,45 +423,87 @@ def get_best_hotels_by_cleanliness(driver, city=None, country=None):
         return (data if data else [f"No cleanliness data found {scope}."]), query_base + query_end
 
 def get_best_hotels_by_value(driver, city=None, country=None):
-    query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_value_for_money IS NOT NULL"
+    query_base = """
+    MATCH (r:Review)-[:REVIEWED]->(h:Hotel) 
+    WHERE r.score_value_for_money IS NOT NULL
+    """
     params = {}
     if city:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(c:City) WHERE toLower(c.name) = toLower($city) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(c:City) 
+        WHERE toLower(c.name) = toLower($city) 
+        """
         params["city"] = city
     elif country:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) WHERE toLower(cntry.name) = toLower($country) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) 
+        WHERE toLower(cntry.name) = toLower($country) 
+        """
         params["country"] = country
-    query_end = " WITH h.name AS Hotel, AVG(r.score_value_for_money) AS AvgScore RETURN Hotel, AvgScore ORDER BY AvgScore DESC LIMIT 5"
+    query_end = """
+    WITH h.name AS Hotel, AVG(r.score_value_for_money) AS AvgScore 
+    RETURN Hotel, AvgScore 
+    ORDER BY AvgScore DESC 
+    LIMIT 5
+    """
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Value Score: {round(record['AvgScore'], 2)})" for record in result]
         return (data if data else ["No value data found."]), query_base + query_end
 
 def get_best_hotels_by_location(driver, city=None, country=None):
-    query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_location IS NOT NULL"
+    query_base = """
+    MATCH (r:Review)-[:REVIEWED]->(h:Hotel) 
+    WHERE r.score_location IS NOT NULL
+    """
     params = {}
     if city:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(c:City) WHERE toLower(c.name) = toLower($city) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(c:City) 
+        WHERE toLower(c.name) = toLower($city) 
+        """
         params["city"] = city
     elif country:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) WHERE toLower(cntry.name) = toLower($country) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) 
+        WHERE toLower(cntry.name) = toLower($country) 
+        """
         params["country"] = country
-    query_end = " WITH h.name AS Hotel, AVG(r.score_location) AS AvgScore RETURN Hotel, AvgScore ORDER BY AvgScore DESC LIMIT 5"
+    query_end = """
+    WITH h.name AS Hotel, AVG(r.score_location) AS AvgScore 
+    RETURN Hotel, AvgScore 
+    ORDER BY AvgScore DESC 
+    LIMIT 5
+    """
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Location Score: {round(record['AvgScore'], 2)})" for record in result]
         return (data if data else ["No location data found."]), query_base + query_end
 
 def get_best_hotels_by_comfort(driver, city=None, country=None):
-    query_base = "MATCH (r:Review)-[:REVIEWED]->(h:Hotel) WHERE r.score_comfort IS NOT NULL"
+    query_base = """
+    MATCH (r:Review)-[:REVIEWED]->(h:Hotel) 
+    WHERE r.score_comfort IS NOT NULL
+    """
     params = {}
     if city:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(c:City) WHERE toLower(c.name) = toLower($city) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(c:City) 
+        WHERE toLower(c.name) = toLower($city) 
+        """
         params["city"] = city
     elif country:
-        query_base += " MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) WHERE toLower(cntry.name) = toLower($country) "
+        query_base += """
+        MATCH (h)-[:LOCATED_IN]->(:City)-->(cntry:Country) 
+        WHERE toLower(cntry.name) = toLower($country) 
+        """
         params["country"] = country
-    query_end = " WITH h.name AS Hotel, AVG(r.score_comfort) AS AvgScore RETURN Hotel, AvgScore ORDER BY AvgScore DESC LIMIT 5"
+    query_end = """
+    WITH h.name AS Hotel, AVG(r.score_comfort) AS AvgScore 
+    RETURN Hotel, AvgScore 
+    ORDER BY AvgScore DESC 
+    LIMIT 5
+    """
     with driver.session() as session:
         result = session.run(query_base + query_end, **params)
         data = [f"Hotel: {record['Hotel']} (Comfort Score: {round(record['AvgScore'], 2)})" for record in result]
@@ -472,7 +528,7 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                 context_parts.append(f"Top Hotels in {city} (from KG):\n" + "\n".join(graph_results))
                 visualization_data.extend(get_visualization_data(driver, "City", detected_entities))
 
-        # 2. Country Check (NEW)
+        # 2. Country Check
         country = detected_entities.get("Country")
         if country:
             graph_results, query_str = get_hotels_by_country(driver, country)
@@ -547,13 +603,33 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
 
     # --- B. EMBEDDINGS (VECTOR) STRATEGY ---
     if retrieval_mode in ["Embeddings (Vector Only)", "Hybrid (Graph + Embeddings)"]:
+        # Text Reviews
         vector_results = text_retriever.invoke(user_query)
         text_reviews = "\n".join([doc.page_content for doc in vector_results])
         context_parts.append(f"Relevant Text Reviews:\n{text_reviews}")
 
+        # Feature Profiles with Deduplication (DEDUPLICATION FIX)
         if feature_retriever:
             feature_results = feature_retriever.invoke(user_query)
-            feature_text = "\n".join([doc.page_content for doc in feature_results])
+            
+            # 1. Deduplicate by Hotel ID
+            unique_feature_docs = []
+            seen_hotel_ids = set()
+            
+            for doc in feature_results:
+                # Regex matches "Hotel: Name (ID: 123)..." -> extracts 123
+                match = re.search(r"\(ID:\s*([^)]+)\)", doc.page_content)
+                if match:
+                    hotel_id = match.group(1)
+                    if hotel_id not in seen_hotel_ids:
+                        seen_hotel_ids.add(hotel_id)
+                        unique_feature_docs.append(doc)
+                else:
+                    # Fallback if format is weird, just add it
+                    unique_feature_docs.append(doc)
+            
+            # 2. Add deduplicated content to context
+            feature_text = "\n".join([doc.page_content for doc in unique_feature_docs])
             context_parts.append(f"Relevant Hotel Feature Profiles (Scores from Neo4j):\n{feature_text}")
     
     # --- CONSTRUCT PROMPT ---
