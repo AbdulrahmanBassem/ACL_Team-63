@@ -7,13 +7,11 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Neo4jVector
 from neo4j import GraphDatabase
 
-# Define the models we want to support
 EMBEDDING_MODELS = {
     "MiniLM": "sentence-transformers/all-MiniLM-L6-v2",
     "MPNet": "sentence-transformers/all-mpnet-base-v2"
 }
 
-# Batch size controls how many documents are sent to Neo4j at once
 BATCH_SIZE = 200 
 
 def load_config(config_file='config.txt'):
@@ -27,13 +25,11 @@ def load_config(config_file='config.txt'):
     return config
 
 def create_feature_embeddings():
-    # 0. Load Configuration
     config = load_config()
     NEO4J_URI = config.get('URI', 'neo4j://127.0.0.1:7687')
     NEO4J_USER = config.get('USERNAME', 'neo4j')
     NEO4J_PASSWORD = config.get('PASSWORD', 'password')
 
-    # 1. Load Data
     reviews_path = 'Dataset/reviews.csv'
     hotels_path = 'Dataset/hotels.csv'
     
@@ -45,11 +41,9 @@ def create_feature_embeddings():
     reviews_df = pd.read_csv(reviews_path)
     hotels_df = pd.read_csv(hotels_path)
 
-    # 2. Merge Dataframes to get Hotel Name
     print("Merging data...")
     df_merged = pd.merge(reviews_df, hotels_df[['hotel_id', 'hotel_name']], on='hotel_id', how='left')
 
-    # 3. Select Columns and Handle NaNs
     feature_cols = [
         'hotel_id', 
         'hotel_name',
@@ -65,7 +59,6 @@ def create_feature_embeddings():
     df_features[feature_cols[2:]] = df_features[feature_cols[2:]].fillna(0)
     df_features['hotel_name'] = df_features['hotel_name'].fillna("Unknown Hotel")
 
-    # 4. Create Semantic Feature Strings
     def build_feature_string(row):
         return (
             f"Hotel: {row['hotel_name']} (ID: {row['hotel_id']}). "
@@ -87,9 +80,7 @@ def create_feature_embeddings():
     docs = text_splitter.split_documents(documents)
     print(f"Total Documents to Process: {len(docs)}")
 
-    # ---------------------------------------------------------
-    # LOOP THROUGH MODELS AND SAVE TO NEO4J (WITH BATCHING)
-    # ---------------------------------------------------------
+    
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
     for model_short_name, model_repo_id in EMBEDDING_MODELS.items():
@@ -98,7 +89,7 @@ def create_feature_embeddings():
         index_name = f"feature_index_{model_short_name}"
         node_label = f"Feature_{model_short_name}" 
 
-        # Clean up existing nodes
+       
         print(f"Cleaning existing '{node_label}' nodes in Neo4j...")
         with driver.session() as session:
             session.run(f"MATCH (n:{node_label}) DETACH DELETE n")
@@ -107,10 +98,8 @@ def create_feature_embeddings():
             except:
                 pass
 
-        # Initialize Embedder
         embedding_model = HuggingFaceEmbeddings(model_name=model_repo_id)
         
-        # Split documents into batches
         total_docs = len(docs)
         batches = [docs[i:i + BATCH_SIZE] for i in range(0, total_docs, BATCH_SIZE)]
         

@@ -14,9 +14,6 @@ from langchain_core.language_models.llms import LLM
 from typing import Optional, List, Any
 from pydantic import Field
 
-# ---------------------------------------------------------
-# 1. CONFIGURATION
-# ---------------------------------------------------------
 st.set_page_config(page_title="Hotel Graph-RAG Assistant", layout="wide")
 
 def load_config(config_file='config.txt'):
@@ -35,7 +32,6 @@ NEO4J_USER = neo4j_config.get('USERNAME', 'neo4j')
 NEO4J_PASSWORD = neo4j_config.get('PASSWORD', 'password')
 HF_TOKEN = neo4j_config.get('HFToken', '')
 
-# --- MODEL DEFINITIONS ---
 EMBEDDING_MODELS = {
     "MiniLM (Fast)": "sentence-transformers/all-MiniLM-L6-v2",
     "MPNet (Accurate)": "sentence-transformers/all-mpnet-base-v2"
@@ -47,9 +43,7 @@ LLM_MODELS = {
     "Llama 3 (8B)": "meta-llama/Meta-Llama-3-8B-Instruct"
 }
 
-# ---------------------------------------------------------
-# 2. HELPER: AGE MAPPING
-# ---------------------------------------------------------
+
 def map_range_to_groups(user_min, user_max):
     dataset_groups = {
         "18-24": (18, 24),
@@ -66,9 +60,7 @@ def map_range_to_groups(user_min, user_max):
             selected_groups.append(label)
     return selected_groups
 
-# ---------------------------------------------------------
-# 3. LLM WRAPPER & SETUP
-# ---------------------------------------------------------
+
 class HuggingFaceLLMWrapper(LLM):
     """
     Generic Wrapper for Hugging Face Inference API.
@@ -152,14 +144,12 @@ def get_all_entities(_driver):
         entities["Age Group"] = {r["val"] for r in result if r["val"]}
     return entities
 
-# ---------------------------------------------------------
-# 4. ENTITY EXTRACTION
-# ---------------------------------------------------------
+
+# Intent classification and entity extraction
 def extract_entities_from_query(query, entity_db):
     query_lower = query.lower()
     detected = {}
     
-    # 1. Standard Extraction
     for category, values in entity_db.items():
         if category == "Age Group": continue
         found_val = None
@@ -172,7 +162,7 @@ def extract_entities_from_query(query, entity_db):
         if found_val:
             detected[category] = found_val
 
-    # 2. Dynamic Age Range
+    
     age_pattern = r"(?:between\s+)?(\d+)\s*(?:to|and|-)\s*(\d+)"
     age_match = re.search(age_pattern, query_lower)
     if age_match:
@@ -182,7 +172,6 @@ def extract_entities_from_query(query, entity_db):
         if relevant_groups:
             detected["Target Age Groups"] = relevant_groups
 
-    # 3. Special Requests
     if any(k in query_lower for k in ["cleanliness", "clean", "hygiene", "tidy"]): detected["Sort By"] = "Cleanliness"
     if any(k in query_lower for k in ["value", "money", "worth", "price"]): detected["Sort By"] = "Value"
     if any(k in query_lower for k in ["location", "central", "convenient"]): detected["Sort By"] = "Location"
@@ -190,16 +179,13 @@ def extract_entities_from_query(query, entity_db):
 
     return detected
 
-# ---------------------------------------------------------
-# 5. GRAPH VISUALIZATION HELPERS
-# ---------------------------------------------------------
+#Graph Visualization
 def get_visualization_data(driver, intent, entities):
     """
     Returns a list of tuples (source, relationship, target) for graph visualization.
     """
     edges = []
     with driver.session() as session:
-        # A. City Intent
         if intent == "City" and "City" in entities:
             query = """
             MATCH (h:Hotel)-[r:LOCATED_IN]->(c:City)
@@ -209,7 +195,6 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, city=entities["City"])
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # B. Country Intent
         elif intent == "Country" and "Country" in entities:
             query = """
             MATCH (h:Hotel)-[:LOCATED_IN]->(:City)-[:LOCATED_IN]->(c:Country)
@@ -219,7 +204,6 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, country=entities["Country"])
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # C. Traveller Type Intent
         elif intent == "Traveller Type" and "Traveller Type" in entities:
             query = """
             MATCH (t:Traveller)-[:WROTE]->(:Review)-[:REVIEWED]->(h:Hotel)
@@ -229,7 +213,6 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, type=entities["Traveller Type"])
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # D. Gender Intent
         elif intent == "Gender" and "Gender" in entities:
             query = """
             MATCH (t:Traveller)-[:WROTE]->(:Review)-[:REVIEWED]->(h:Hotel)-[:LOCATED_IN]->(c:City)-[:LOCATED_IN]->(cntry:Country)
@@ -239,7 +222,6 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, gender=entities["Gender"])
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
             
-        # E. Age Group Intent
         elif intent == "Age Group" and "Target Age Groups" in entities:
             group = entities["Target Age Groups"][0]
             query = """
@@ -250,10 +232,8 @@ def get_visualization_data(driver, intent, entities):
             result = session.run(query, group=group)
             edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # F. Sort By Intent
         elif intent == "Sort By" and "Sort By" in entities:
             sort_key = entities["Sort By"]
-            # Logic: Connect to City if present, else connect to Country if present, else "Global Top"
             if "City" in entities:
                 query = """
                 MATCH (h:Hotel)-[r:LOCATED_IN]->(c:City)
@@ -271,7 +251,6 @@ def get_visualization_data(driver, intent, entities):
                 result = session.run(query, country=entities["Country"])
                 edges = [(r["source"], r["rel"], r["target"]) for r in result]
             else:
-                # Global Sort Visualization
                 prop_map = {
                     "Cleanliness": "score_cleanliness",
                     "Value": "score_value_for_money",
@@ -289,7 +268,6 @@ def get_visualization_data(driver, intent, entities):
                 result = session.run(query)
                 edges = [(r["source"], r["rel"], r["target"]) for r in result]
 
-        # G. Fallback (General City or Country)
         elif "City" in entities:
             query = """
             MATCH (h:Hotel)-[r:LOCATED_IN]->(c:City)
@@ -309,9 +287,7 @@ def get_visualization_data(driver, intent, entities):
             
     return edges
 
-# ---------------------------------------------------------
-# 6. CYPHER QUERIES
-# ---------------------------------------------------------
+#basline 
 def get_hotels_by_city(driver, city_name):
     query = """
     MATCH (h:Hotel)-[:LOCATED_IN]->(c:City)
@@ -509,17 +485,13 @@ def get_best_hotels_by_comfort(driver, city=None, country=None):
         data = [f"Hotel: {record['Hotel']} (Comfort Score: {round(record['AvgScore'], 2)})" for record in result]
         return (data if data else ["No comfort data found."]), query_base + query_end
 
-# ---------------------------------------------------------
-# 7. RESPONSE GENERATION
-# ---------------------------------------------------------
+
 def generate_response(user_query, detected_entities, text_retriever, feature_retriever, driver, llm_client, retrieval_mode, llm_model_name):
     context_parts = []
     executed_queries = []
     visualization_data = [] 
     
-    # --- A. BASELINE (GRAPH) STRATEGY ---
     if retrieval_mode in ["Baseline (Graph Only)", "Hybrid (Graph + Embeddings)"]:
-        # 1. City Check
         city = detected_entities.get("City")
         if city:
             graph_results, query_str = get_hotels_by_city(driver, city)
@@ -528,7 +500,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                 context_parts.append(f"Top Hotels in {city} (from KG):\n" + "\n".join(graph_results))
                 visualization_data.extend(get_visualization_data(driver, "City", detected_entities))
 
-        # 2. Country Check
         country = detected_entities.get("Country")
         if country:
             graph_results, query_str = get_hotels_by_country(driver, country)
@@ -537,7 +508,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                 context_parts.append(f"Top Hotels in {country} (from KG):\n" + "\n".join(graph_results))
                 visualization_data.extend(get_visualization_data(driver, "Country", detected_entities))
 
-        # 3. Traveller Type
         t_type = detected_entities.get("Traveller Type")
         if t_type:
             if "country" in user_query.lower() or "countries" in user_query.lower():
@@ -552,7 +522,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                     context_parts.append(f"Top Hotels for '{t_type}':\n" + "\n".join(type_results))
                     visualization_data.extend(get_visualization_data(driver, "Traveller Type", detected_entities))
 
-        # 4. Demographics
         gender = detected_entities.get("Gender")
         if gender:
             gender_results, query_str = get_top_countries_by_gender(driver, gender)
@@ -561,7 +530,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                 context_parts.append(f"Popular for {gender}:\n" + "\n".join(gender_results))
                 visualization_data.extend(get_visualization_data(driver, "Gender", detected_entities))
 
-        # 5. Age Groups
         age_groups = detected_entities.get("Target Age Groups")
         if age_groups:
             if "country" in user_query.lower() or "countries" in user_query.lower():
@@ -575,7 +543,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                     context_parts.append(f"Top Rated Hotels for Ages {age_groups}:\n" + "\n".join(hotel_results))
                     visualization_data.extend(get_visualization_data(driver, "Age Group", detected_entities))
 
-        # 6. Sorting
         sort_type = detected_entities.get("Sort By")
         target_city = detected_entities.get("City")
         target_country = detected_entities.get("Country")
@@ -592,7 +559,6 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
             elif sort_type == "Location": handle_sort(get_best_hotels_by_location, "Best Located")
             elif sort_type == "Comfort": handle_sort(get_best_hotels_by_comfort, "Most Comfortable")
             
-            # --- Trigger Visualization for Sort Intent (Fallback Logic) ---
             if not visualization_data:
                 if target_city:
                      visualization_data.extend(get_visualization_data(driver, "City", detected_entities))
@@ -601,23 +567,18 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                 else:
                      visualization_data.extend(get_visualization_data(driver, "Sort By", detected_entities))
 
-    # --- B. EMBEDDINGS (VECTOR) STRATEGY ---
     if retrieval_mode in ["Embeddings (Vector Only)", "Hybrid (Graph + Embeddings)"]:
-        # Text Reviews
         vector_results = text_retriever.invoke(user_query)
         text_reviews = "\n".join([doc.page_content for doc in vector_results])
         context_parts.append(f"Relevant Text Reviews:\n{text_reviews}")
 
-        # Feature Profiles with Deduplication (DEDUPLICATION FIX)
         if feature_retriever:
             feature_results = feature_retriever.invoke(user_query)
             
-            # 1. Deduplicate by Hotel ID
             unique_feature_docs = []
             seen_hotel_ids = set()
             
             for doc in feature_results:
-                # Regex matches "Hotel: Name (ID: 123)..." -> extracts 123
                 match = re.search(r"\(ID:\s*([^)]+)\)", doc.page_content)
                 if match:
                     hotel_id = match.group(1)
@@ -625,14 +586,11 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
                         seen_hotel_ids.add(hotel_id)
                         unique_feature_docs.append(doc)
                 else:
-                    # Fallback if format is weird, just add it
                     unique_feature_docs.append(doc)
             
-            # 2. Add deduplicated content to context
             feature_text = "\n".join([doc.page_content for doc in unique_feature_docs])
             context_parts.append(f"Relevant Hotel Feature Profiles (Scores from Neo4j):\n{feature_text}")
     
-    # --- CONSTRUCT PROMPT ---
     full_context = "\n\n".join(context_parts)
     if not full_context: full_context = "No relevant data found in the selected retrieval source."
 
@@ -652,9 +610,8 @@ def generate_response(user_query, detected_entities, text_retriever, feature_ret
     llm = HuggingFaceLLMWrapper(client=llm_client, model_name=llm_model_name)
     return llm.invoke(prompt), full_context, executed_queries, visualization_data
 
-# ---------------------------------------------------------
-# 8. MAIN UI
-# ---------------------------------------------------------
+
+#Streemlit
 st.title("🏨 Graph-RAG Hotel Assistant")
 st.sidebar.header("Configuration")
 retrieval_mode = st.sidebar.radio("Select Retrieval Strategy:", ("Hybrid (Graph + Embeddings)", "Baseline (Graph Only)", "Embeddings (Vector Only)"))
@@ -690,7 +647,6 @@ if st.button("Ask Assistant"):
             with st.expander("Cypher Queries Executed"):
                 for q in queries: st.code(q, language='cypher')
 
-        # --- GRAPH VISUALIZATION ---
         if viz_data:
             with st.expander("Graph Visualization Snippets"):
                 graph = graphviz.Digraph()
