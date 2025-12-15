@@ -11,3 +11,4 @@ before runing in vs code
 
 - app.py
 - create_embeddings.py
+- config.txt
