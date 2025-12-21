@@ -193,12 +193,3 @@ Examples:
   (City, Country, Traveller Type, etc.) to be detected.  
   Generic questions may not generate a visual graph.
 
-
-- **410 Client Error (LLM)**  
-  If an LLM model fails (e.g., *Model is deprecated*), switch to a different model in the sidebar  
-  (e.g., **Mistral v0.2** or **Zephyr**).
-
-- **Missing Graph in UI**  
-  The graph visualization requires specific entities  
-  (City, Country, Traveller Type, etc.) to be detected.  
-  Generic questions may not generate a visual graph.
