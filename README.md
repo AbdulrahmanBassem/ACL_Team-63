@@ -71,17 +71,15 @@ Follow these steps in order to set up the data and run the app.
 Populate your Neo4j database with the base nodes (Hotels, Cities, Travellers) and relationships.
 *Warning: This script clears existing data in the database before writing.*
 
-```bash
 python Create_kg.py
 
-##Step 2: Generate Vector Embeddings
+## Step 2: Generate Vector Embeddings
 
 Compute embeddings for hotel reviews and store them in Neo4j vector indices.  
 This script batches the data to ensure stability.
 
-```bash
+
 python create_embeddings.py
-```
 
 **Note:**  
 This creates two separate indices in Neo4j:
@@ -94,11 +92,7 @@ This creates two separate indices in Neo4j:
 
 Start the Streamlit web interface.
 
-```bash
 streamlit run app.py
-```
-
----
 
 ## 🖥️ Usage Guide
 
