@@ -71,15 +71,18 @@ Follow these steps in order to set up the data and run the app.
 Populate your Neo4j database with the base nodes (Hotels, Cities, Travellers) and relationships.
 *Warning: This script clears existing data in the database before writing.*
 
+```bash
 python Create_kg.py
+```
 
 ## Step 2: Generate Vector Embeddings
 
 Compute embeddings for hotel reviews and store them in Neo4j vector indices.  
 This script batches the data to ensure stability.
 
-
+```bash
 python create_embeddings.py
+```
 
 **Note:**  
 This creates two separate indices in Neo4j:
@@ -92,7 +95,11 @@ This creates two separate indices in Neo4j:
 
 Start the Streamlit web interface.
 
+```bash
 streamlit run app.py
+```
+
+---
 
 ## 🖥️ Usage Guide
 
@@ -176,6 +183,16 @@ Examples:
 - **Graph Visualization Not Showing**  
   Ensure **Graphviz** is installed on your OS and added to the system `PATH`.  
   The Python library alone is not enough.
+
+- **410 Client Error (LLM)**  
+  If an LLM model fails (e.g., *Model is deprecated*), switch to a different model in the sidebar  
+  (e.g., **Mistral v0.2** or **Zephyr**).
+
+- **Missing Graph in UI**  
+  The graph visualization requires specific entities  
+  (City, Country, Traveller Type, etc.) to be detected.  
+  Generic questions may not generate a visual graph.
+
 
 - **410 Client Error (LLM)**  
   If an LLM model fails (e.g., *Model is deprecated*), switch to a different model in the sidebar  
